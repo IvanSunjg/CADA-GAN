@@ -18,13 +18,13 @@ The library can be installed from GitHub using `pip`.
 For Linux and MacOS:
 
 ```bash
-pip install 'git+https://github.com/IvanSunjg/ETH_DL_2022.git#egg=augmentations&subdirectory=augmentations'
+pip install 'git+https://github.com/IvanSunjg/ETH_DL_2022.git#egg=augmentations&subdirectory=ImageAugmentation'
 ```
 
 For Windows:
 
 ```bash
-pip install 'git+https://github.com/IvanSunjg/ETH_DL_2022.git#egg=augmentations^&subdirectory=augmentations'
+pip install 'git+https://github.com/IvanSunjg/ETH_DL_2022.git#egg=augmentations^&subdirectory=ImageAugmentation'
 ```
 
 ## Getting Started
