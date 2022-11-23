@@ -6,10 +6,14 @@ import os
 
 class TSKinDataset(ImageFolder):
 
-    def __init__(self, root, transform=None):
-        super(TSKinDataset, self).__init__(root)
-        self.data = ImageFolder(root, transform)
+    def __init__(self, root, epoch_transforms={}, **kwargs):
+        super(TSKinDataset, self).__init__(root, **kwargs)
+
+        self.epoch_transforms = epoch_transforms
         self.data.classes, self.data.class_to_idx = self._find_classes(root)
+
+        if 0 in self.epoch_transforms:
+            self.transform = self.epoch_transforms[0]
     
     def _find_classes(self, root):
         if sys.version_info >= (3, 5):
@@ -28,8 +32,8 @@ class TSKinDataset(ImageFolder):
             sample = augmentations.apply_transform(self.transform, sample, idx)
         return sample, target
 
-    # def update_transform(self, epoch):
-    #     if epoch in self.epoch_transforms:
-    #         self.transform = self.epoch_transforms[epoch]
+    def update_transform(self, epoch):
+        if epoch in self.epoch_transforms:
+            self.transform = self.epoch_transforms[epoch]
 
     
