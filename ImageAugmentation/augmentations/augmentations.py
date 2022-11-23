@@ -13,13 +13,12 @@ class IndexTransform():
     def __call__(self, img):
         raise NotImplementedError('Don not call this Class directly!')
 
-def apply_transform(ts, img, idx):
+def apply_transform(t, img, idx=None):
 
-    for t in ts:
-        if isinstance(t, IndexTransform):
-            img = t(img, idx)
-        else:
-            img = t(img)
+    if isinstance(t, IndexTransform):
+        img = t(img, idx)
+    else:
+        img = t(img)
 
     return img
 
