@@ -10,7 +10,7 @@ class TSKinDataset(ImageFolder):
         super(TSKinDataset, self).__init__(root, **kwargs)
 
         self.epoch_transforms = epoch_transforms
-        self.data.classes, self.data.class_to_idx = self._find_classes(root)
+        self.classes, self.class_to_idx = self._find_classes(root)
 
         if 0 in self.epoch_transforms:
             self.transform = self.epoch_transforms[0]
