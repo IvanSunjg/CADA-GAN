@@ -1,20 +1,17 @@
 import torch
 from torchvision import transforms
 import numpy as np
-import matplotlib.pyplot as plt
 
-def mixup(image1, label1, image2, label2, alpha=2, min_lam=0, max_lam=1):
+def mixup(image1, image2, alpha=2, min_lam=0, max_lam=1):
     # Select a random number from the given beta distribution
     # Mixup the images accordingly
-    alpha = 0.2
-    lam = np.clip(np.random.beta(alpha, alpha), min_lam, max_lam)
+    lam = np.clip(np.random.beta(alpha, alpha), min_lam, max_lam) 
     mixup_image = lam * image1 + (1 - lam) * image2
-    mixup_label = lam * label1 + (1 - lam) * label2
 
-    return mixup_image, mixup_label
+    return mixup_image
 
 
-def augmix(img, k=3, w=[0.2, 0.3, 0.5], m=0.2, level=3):
+def augmix(img, k=2, w=[0.5, 0.5], m=0.2, level=2):
     '''
     @article{hendrycks2020augmix,
     title={{AugMix}: A Simple Data Processing Method to Improve Robustness and Uncertainty},
@@ -23,13 +20,13 @@ def augmix(img, k=3, w=[0.2, 0.3, 0.5], m=0.2, level=3):
     year={2020}
     }
 
-    k: number of different augmentations taken (default 3)
+    k: number of different augmentations taken (default 2)
     w: list of weights for each augmentation to mixup
     m: weight of the original image when mixing it with the mixed augmentation image
     level: level of augmention
     '''
     if k != len(w):
-        raise ValueError(f'k={k} must match the length of w={len(w)}.')
+        raise ValueError(f'k={k} must match the length of w={len(w)}!')
 
     auglist = ["hflip", "vflip", "autocontrast", "rotate", "translate_x", "translate_y", "shear_x", "shear_y"]
     augs = np.random.choice(auglist, k)
