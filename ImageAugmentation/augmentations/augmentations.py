@@ -27,9 +27,8 @@ class _Mix():
     Superclass for transformations that require image mixing of the mother and father.
     '''
 
-    def __init__(self, dataset, image):
+    def __init__(self, dataset):
         self.dataset = dataset
-        self.image = image
 
     def get_mix_item(self, idx):
 
@@ -84,8 +83,8 @@ class _Mix():
 
 class MixUp(_Mix, IndexTransform):
 
-    def __init__(self, image, dataset, alpha=0.2, min_lam=0.3, max_lam=0.7):
-        super().__init__(dataset, image)
+    def __init__(self, dataset, alpha=0.2, min_lam=0.3, max_lam=0.7):
+        super().__init__(dataset)
 
         self.alpha = alpha
         self.min_lam = min_lam

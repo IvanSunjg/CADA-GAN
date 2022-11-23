@@ -23,7 +23,6 @@ class TSKinDataset(ImageFolder):
     def __getitem__(self, idx):
         path, target = self.samples[idx]
         sample = self.loader(path)
-        target = self.ohe_transform(target)
 
         if self.transform is not None:
             sample = augmentations.apply_transform(self.transform, sample, idx)
