@@ -80,7 +80,7 @@ class P(IndexTransform):
 
     def __call__(self, img, idx):
         if np.random.rand() < self.p:
-            return apply_transform(self.transform, img, idx)
+            return apply_transform([self.transform], img, idx)
         return img
 
     def __repr__(self):

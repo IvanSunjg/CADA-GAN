@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name='augmentations',
-    version='1.0.8',
+    version='1.0.9',
     author='Jiugeng Sun, Jiaqing Xie, Sofie, Sofie Daniëls, Dan',
     author_email='jiugengsun@gmail.com',
     description='Data Augmentations for the Child Face GAN',
