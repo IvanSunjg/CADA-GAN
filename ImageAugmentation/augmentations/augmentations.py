@@ -1,5 +1,6 @@
 import numpy as np
 from . import utils
+from torchvision import transforms
 
 
 class IndexTransform():
@@ -9,15 +10,16 @@ class IndexTransform():
     i.e. an image-target pair. Used by transforms including, but not limited to, MixUp and CutMix.
     '''
 
-    def __call__(self, img, idx):
+    def __call__(self, img):
         raise NotImplementedError('Don not call this Class directly!')
 
-def apply_transform(t, img, idx):
+def apply_transform(ts, img, idx):
 
-    if isinstance(t, IndexTransform):
-        img = t(img, idx)
-    else:
-        img = t(img)
+    for t in ts:
+        if isinstance(t, IndexTransform):
+            img = t(img, idx)
+        else:
+            img = t(img)
 
     return img
 
@@ -46,40 +48,6 @@ class _Mix():
         mix_image, mix_label = self.dataset[mix_idx]
 
         return mix_image
-
-# class AugMix():
-#     '''
-#     @article{hendrycks2020augmix,
-#     title={{AugMix}: A Simple Data Processing Method to Improve Robustness and Uncertainty},
-#     author={Hendrycks, Dan and Mu, Norman and Cubuk, Ekin D. and Zoph, Barret and Gilmer, Justin and Lakshminarayanan, Balaji},
-#     journal={Proceedings of the International Conference on Learning Representations (ICLR)},
-#     year={2020}
-#     }
-
-#     k: number of different augumentations taken (default 3)
-#     w1,w2,w3: weight for each augumentated image to mixup
-#     m: weight for mix with the original and the mixup augumentated image
-#     level: level of augmentation
-#     '''
-
-#     def __init__(self, k=3, w=[0.2, 0.3, 0.5], m=0.2, level=3):
-#         self.k = k
-#         self.w = w
-#         self.m = m
-#         self.level = level
-
-#     def __call__(self, img):
-#         '''
-#         Args:
-#             img (Tensor): Tensor image of size (C, H, W)
-#         '''
-
-#         # TODO could modify different augmentation method hyperparameters
-#         miximg = utils.augmix(img, k=self.k, w=self.w, m=self.m, level=self.level)
-#         return miximg
-
-#     def __repr__(self):
-#         return self.__class__.__name__ + f'(k={self.k}, w={self.w}, m={self.m}, level={self.level})'
 
 class MixUp(_Mix, IndexTransform):
 
