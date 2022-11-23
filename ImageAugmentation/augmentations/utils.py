@@ -11,7 +11,7 @@ def mixup(image1, image2, alpha=2, min_lam=0, max_lam=1):
     return mixup_image
 
 
-def augmix(img, k=2, w=[0.5, 0.5], m=0.2, level=2):
+def augmix(img, k=3, w=[0.2, 0.3, 0.5], m=0.2, level=2):
     '''
     @article{hendrycks2020augmix,
     title={{AugMix}: A Simple Data Processing Method to Improve Robustness and Uncertainty},
@@ -20,7 +20,7 @@ def augmix(img, k=2, w=[0.5, 0.5], m=0.2, level=2):
     year={2020}
     }
 
-    k: number of different augmentations taken (default 2)
+    k: number of different augmentations taken (default 3)
     w: list of weights for each augmentation to mixup
     m: weight of the original image when mixing it with the mixed augmentation image
     level: level of augmention
