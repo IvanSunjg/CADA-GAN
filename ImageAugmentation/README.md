@@ -69,9 +69,7 @@ dataset = TSKinDataset(
 )
 ```
 
-Besides two basic image manipulation techniques, we also implemented a P() function which can help you specify how likely you want to utilise the corresponding technique to the images.
-
-2. Example use for loading a dataset that uses P:
+3. Example use for loading a dataset that uses P:
 
 ```python
 dataset = TSKinDataset(
@@ -83,6 +81,31 @@ dataset = TSKinDataset(
     ]
 )
 ```
+
+## Functions
+
+### MixUp(dataset, alpha=0.2, min_lam=0.3, max_lam=0.7)
+
+Function that is used to mix up the image of the parents. The function will generate a random number and mix the two images based on the random value.
+
+**Parameters**:
+
+`dataset`: The dataset used to mix the current image. The root that is used to construct the `dataset` should be the same as the TSKinDataset! Please refer to the `Example 1`.
+
+`alpha`: Number used to generate the random number. Random number is retireved from `numpy.random.beta(alpha, alpha)`, which will draw the samples from a Beta distribution.
+
+`min_lam` & `max_lam`: The minimum and maximum values that the random number could be. In order to have the valid values, please make sure the values are between 0 to 1 and make sure `min_lam` is smaller than `max_lam`.
+
+### AugMix()
+
+Function that is used to AugMix the image. The technique is probably not very helpful. Be careful when you want to use it.
+
+### P(transform, p)
+
+Besides two basic image manipulation techniques, we also implemented a P() function which can help you specify how likely you want to utilise the corresponding technique to the images. Please refer to `Example 3` if you want to use it.
+
+
+
 
 ## Notes
 
