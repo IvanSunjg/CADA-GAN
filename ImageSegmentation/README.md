@@ -1,7 +1,9 @@
 # Image Segmentation
 
-TODO upload files > 25 MB
-TODO upload pix2pixGAN
+- [X] upload image segmentation code
+- [ ] upload files > 25 MB
+- [ ] upload pix2pixGAN
+- [ ] update readme with pix2pixGAN
 
 A code base that applies image segmentation in the context of face parsing. The code is from "Lin et al. 2021 - RoI Tanh-polar transformer network for face parsing in the wild" (https://github.com/hhj1897/face_parsing).
 
