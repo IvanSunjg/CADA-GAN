@@ -1,6 +1,11 @@
 # Image Segmentation
 
-A code base that applies image segmentation in the context of face parsing. The code is from "Lin et al. 2021 - RoI Tanh-polar transformer network for face parsing in the wild" (https://github.com/hhj1897/face_parsing).
+- [X] upload image segmentation code
+- [ ] upload files > 25 MB
+- [ ] upload pix2pixGAN
+- [ ] update readme with pix2pixGAN
+
+A code base that applies image segmentation in the context of face parsing. The code is adapted from "Lin et al. 2021 - RoI Tanh-polar transformer network for face parsing in the wild" (https://github.com/hhj1897/face_parsing).
 
 ## Dependencies
 
