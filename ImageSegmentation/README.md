@@ -5,33 +5,41 @@ A code base that applies image segmentation in the context of face parsing. The 
 ## Dependencies
 
 * git-lfs
-* numpy
-* opencv-python
-* torch
-* torchvision
+* numpy >= 1.17.0
+* opencv-python >= 3.4.2
+* torch >= 1.6.0
+* torchvision >= 0.7.0
+* scipy >= 1.1.0
 
 ## Installation
 
 ```bash
-git clone https://github.com/hhj1897/face_parsing
+git clone https://github.com/IvanSunjg/ETH_DL_2022/tree/main/ImageSegmentation
 cd face_parsing
 git lfs pull
 pip install -e .
+git clone https://github.com/hhj1897/face_detection.git
+cd face_detection
+git lfs pull
+pip install -e .
+cd ../
+git clone https://github.com/hhj1897/roi_tanh_warping
+cd roi_tanh_warping
+pip install -e .
+cd ../
 ```
 
 ## Getting Started
 
 Test
 ```bash
-python face_warping_test.py -i 0 -e rtnet50 --decoder fcn -n 11 -d cuda:0
+python face_parsing_test.py
 ```
 
 Command line arguments
 ```bash
--i VIDEO: Index of the webcam to use (start from 0) or
-          path of the input video file
--d: Device to be used by PyTorch (default=cuda:0)
--e: Encoder (default=rtnet50)
---decoder: Decoder (default=fcn)
--n: Number of facial classes, can be 11 or 14 for now (default=11)
+--input: Path to input images
+--output: Path to save images
+--facebox: add rectangle around detected faces
+--blurring: apply segmentation only (0), segmentation + blurring (1), blurring only (2)
 ```
