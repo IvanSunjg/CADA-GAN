@@ -2,5 +2,5 @@
 - [X] upload readme for segmentation code
 - [ ] upload files > 25 MB
 - [X] upload pix2pixGAN
-- [ ] add parser to pix2pixGAN
-- [ ] upload readme for pix2pixGAN
+- [X] add parser to pix2pixGAN
+- [X] upload readme for pix2pixGAN
