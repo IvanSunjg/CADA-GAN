@@ -1,4 +1,5 @@
-# based on https://machinelearningmastery.com/how-to-develop-a-pix2pix-gan-for-image-to-image-translation/
+# from https://machinelearningmastery.com/how-to-develop-a-pix2pix-gan-for-image-to-image-translation/
+from argparse import ArgumentParser
 from numpy.random import randint
 from numpy import zeros, ones
 import matplotlib
@@ -15,6 +16,22 @@ import os
 import gc
 import numpy
 import imageio
+
+# Parse command-line arguments
+parser = ArgumentParser()
+parser.add_argument('--train', '-i', help='Path to training images',
+					default='...')
+parser.add_argument('--test', '-e', help='Path to test images',
+					default='...')
+parser.add_argument('--output', '-o', help='Path to output folder',
+					default='...')
+parser.add_argument('--testbatch', '-t', help='Number of images you want to test, has to be smaller than or equal to test dataset size',
+					type=int, default=1)
+parser.add_argument('--epochs', '-n', help='Number of epochs you want to train for',
+					type=int, default=5)
+parser.add_argument('--batches', '-b', help='Number of batches for training',
+					type=int, default=64)
+args = parser.parse_args()
 
 # define the discriminator model
 def define_discriminator(image_shape):
@@ -56,7 +73,7 @@ def define_discriminator(image_shape):
 	# define model
 	model = Model([in_src_image, in_target_image], patch_out)
 	# compile model
-	opt = Adam(lr=0.0002, beta_1=0.5)
+	opt = Adam(learning_rate=0.0002, beta_1=0.5)
 	model.compile(loss='binary_crossentropy', optimizer=opt, loss_weights=[0.5])
 	return model
 
@@ -135,7 +152,7 @@ def define_gan(g_model, d_model, image_shape):
 	# src image as input, generated image and classification output
 	model = Model(in_src, [dis_out, gen_out])
 	# compile model
-	opt = Adam(lr=0.0002, beta_1=0.5)
+	opt = Adam(learning_rate=0.0002, beta_1=0.5)
 	model.compile(loss=['binary_crossentropy', 'mae'], optimizer=opt, loss_weights=[1,100])
 	return model
 
@@ -199,18 +216,23 @@ def summarize_performance(step, g_model, dataset, path_train_plots, n_samples=3)
 	pyplot.savefig(filename1)
 	pyplot.close()
 
+	if (step+1) % 10 == 0:
+		# save the generator model
+		filename2 = path_models + '/model_%03d.h5' % (step+1)
+		#g_model.save(filename2)
+		print('>Saved: %s and %s' % (filename1, filename2))
+
 # train pix2pix models
-def train(d_model, g_model, gan_model, dataset, datasetval, path_train_plots, path_test_plots, path_models, n_epochs=100, n_batch=64):
+def train(d_model, g_model, gan_model, dataset, dataset_test, path_train_plots, path_test_plots, path_models, test_batch=5, n_epochs=4, n_batch=64):
 	# determine the output square shape of the discriminator
 	n_patch = d_model.output_shape[1]
 	# unpack dataset
 	trainA, trainB = dataset
 	# calculate the number of batches per training epoch
 	bat_per_epo = int(len(trainA) / n_batch)
-	print('batches per epoch', bat_per_epo)
 	# calculate the number of training iterations
 	n_steps = bat_per_epo * n_epochs
-	print('nsteps', n_steps)
+	print('Start training for %d epochs in %d steps', n_epochs, n_steps)
 	# manually enumerate epochs
 	for i in range(n_steps):
 		# select a batch of real samples
@@ -226,12 +248,11 @@ def train(d_model, g_model, gan_model, dataset, datasetval, path_train_plots, pa
 		# summarize performance
 		print('>%d, d1[%.3f] d2[%.3f] g[%.3f]' % (i+1, d_loss1, d_loss2, g_loss))
 		# summarize model performance
-		summarize_performance(i, g_model, dataset, path_train_plots)
-		if (i+1) % (bat_per_epo * 1) == 0:
-			test(i, g_model, datasetval, path_test_plots, path_models, 100)
+		summarize_performance(i, g_model, dataset, path_train_plots, n_samples=test_batch)
 		gc.collect()
+	test(n_steps, g_model, dataset_test, path_test_plots, path_models, test_batch)
 	
-def test(step, g_model, dataset, path_test_plots, path_models, n_samples=100):
+def test(step, g_model, dataset, path_test_plots, path_models, n_samples=5):
 	n_samples = min(n_samples, len(dataset[0]))
 	# select a sample of input images
 	X_realA, X_realB = dataset
@@ -255,25 +276,20 @@ def test(step, g_model, dataset, path_test_plots, path_models, n_samples=100):
 		pyplot.savefig(filename1)
 		pyplot.close()
 
-	# save the generator model
-	filename2 = path_models + '/model_%03d.h5' % (step+1)
-	#g_model.save(filename2)
-	print('>Saved: %s and %s' % (filename1, filename2))
-
 # load image data
-path_train_plots = '.../trainplots/'
+path_train_plots = args.output + '/trainplots/'
 if not os.path.exists(path_train_plots):
 	os.makedirs(path_train_plots)
-path_models = .../models/'
+path_models = args.output + '/models/'
 if not os.path.exists(path_models):
 	os.makedirs(path_models)
-path_test_plots = '.../testplots/'
+path_test_plots = args.output + '/testplots/'
 if not os.path.exists(path_test_plots):
 	os.makedirs(path_test_plots)
-dataset = load_real_samples('.../train/')
-datasetval = load_real_samples('.../test/')
+dataset = load_real_samples(args.train)
+dataset_test = load_real_samples(args.test)
 print('Loaded', dataset[0].shape, dataset[1].shape)
-print('Loaded', datasetval[0].shape, datasetval[1].shape)
+print('Loaded', dataset_test[0].shape, dataset_test[1].shape)
 # define input shape based on the loaded dataset
 image_shape = dataset[0].shape[1:]
 # define the models
@@ -284,7 +300,8 @@ g_model = define_generator(image_shape)
 # define the composite model
 gan_model = define_gan(g_model, d_model, image_shape)
 # train model
-train(d_model, g_model, gan_model, dataset, datasetval, path_train_plots, path_test_plots, path_models)
+train(d_model, g_model, gan_model, dataset, dataset_test, path_train_plots, path_test_plots, path_models,
+		test_batch=args.testbatch, n_epochs=args.epochs, n_batch=args.batches)
 	
 	
 del(d_model)
