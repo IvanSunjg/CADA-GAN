@@ -14,7 +14,8 @@ A code base that undoes image segmentation with the help of Pix2PixGAN. The code
 ## Installation
 
 ```bash
-git clone https://github.com/IvanSunjg/ETH_DL_2022/tree/main/ImageSegmentation
+git clone https://github.com/IvanSunjg/ETH_DL_2022.git
+cd ImageSegmentation/pix2pixGAN
 ```
 
 ## Getting Started
