@@ -14,12 +14,12 @@ A code base that applies image segmentation in the context of face parsing. The 
 ## Installation
 
 ```bash
-git clone https://github.com/IvanSunjg/ETH_DL_2022.git
+git clone https://github.com/IvanSunjg/ETH_DL_2022
 cd ImageSegmentation
 cd face_parsing
 git lfs pull
 pip install -e .
-git clone https://github.com/hhj1897/face_detection.git
+git clone https://github.com/hhj1897/face_detection
 cd face_detection
 git lfs pull
 pip install -e .
