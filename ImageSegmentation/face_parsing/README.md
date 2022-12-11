@@ -14,7 +14,8 @@ A code base that applies image segmentation in the context of face parsing. The 
 ## Installation
 
 ```bash
-git clone https://github.com/IvanSunjg/ETH_DL_2022/tree/main/ImageSegmentation
+git clone https://github.com/IvanSunjg/ETH_DL_2022.git
+cd ImageSegmentation
 cd face_parsing
 git lfs pull
 pip install -e .
