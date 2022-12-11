@@ -20,7 +20,7 @@ cd ImageSegmentation/pix2pixGAN
 
 ## Getting Started
 
-Test
+Train + Test
 ```bash
 python pix2pixSEG.py -i /path/to/train/folder -e /path/to/test/folder -o /path/to/output/folder
 ```
