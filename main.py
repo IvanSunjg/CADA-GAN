@@ -14,7 +14,7 @@ def main(args):
     # Branch when you decide to use the Image Augmentation.
     # MixUp
     if args.augment and args.mixup:
-        logging.info("Image Augmentation is being used. Method is MixUp. Probability is "+str(args.p))
+        # logging.info("Image Augmentation is being used. Method is MixUp. Probability is "+str(args.P))
         default_dataset = ImageFolder(
             root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.d+'/',
             transform = transforms.Compose([
@@ -25,17 +25,17 @@ def main(args):
             root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.d+'/',
             transform = [
                 transforms.ToTensor(),
-                A.P(A.MixUp(dataset=default_dataset))
+                A.P(A.MixUp(dataset=default_dataset), p=args.P)
             ]
         )
     # AugMix
     elif args.augment and args.augmix:
-        logging.info("Image Augmentation is being used. Method is AugMix. Probability is "+str(args.p))
+        # logging.info("Image Augmentation is being used. Method is AugMix. Probability is "+str(args.P))
         dataset = TSKinDataset(
             root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.d+'/',
             transform = [
                 transforms.ToTensor(),
-                A.P(A.AugMix())
+                A.P(A.AugMix(), p=args.P)
             ]
         )
     # SmartAugment
