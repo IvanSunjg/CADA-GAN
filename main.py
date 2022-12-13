@@ -1,5 +1,5 @@
 # This is the run script for the final pipeline version.
-# Please make sure every dependency is installed in the env.yml file.
+# Please make sure every dependency is installed in the requirements.txt file.
 
 import argparse
 import logging
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     parser.add_argument("-augment", action=argparse.BooleanOptionalAction, help="argument to decide if you are going to use Image Augmentation", type=bool)
     parser.add_argument("-mixup", action=argparse.BooleanOptionalAction, help="argument to decide if you are going to use Mixup", type=bool)
     parser.add_argument("-augmix", action=argparse.BooleanOptionalAction, help="argument to decide if you are going to use AugMix", type=bool)
-    parser.add_argument("-p","--P", default=1.0, help="argument to decide the propability of if you are going to use",type=float)
+    parser.add_argument("-p","--P", default=1.0, help="argument to decide the propability of using the Augmentation",type=float)
     parser.add_argument("-smart", action=argparse.BooleanOptionalAction, help="argument to decide if you are going to use SmartAugment", type=bool)
 
     # Argument to decide which dataset to use
