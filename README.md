@@ -30,9 +30,7 @@ cd ../
 git clone https://github.com/hhj1897/roi_tanh_warping
 cd roi_tanh_warping
 pip install -e .
-cd ../
-cd ../
-cd ../
+cd ../../../
 ```
 
 For image augmentation, please enter the following lines in your command prompt.
