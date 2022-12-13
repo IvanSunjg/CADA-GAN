@@ -43,12 +43,14 @@ def main(args):
     elif args.augment and args.smart:
         pass
 
-
-    # Branch when you decide to use the Image Segmentation.
-    # TODO: Sofie Daniëls
+    # Add basic unaugmented dataset 
+    # TODO: Jiugeng Sun
     else:
         pass
-
+    
+    # Branch when you decide to use the Image Segmentation.
+    # TODO: Sofie Daniëls
+    
     # GAN Piepline
     # TODO: Jiaqing Xie
 
