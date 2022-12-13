@@ -61,7 +61,7 @@ def main(args):
         data_list = np.asarray(data_list)
 
         # Segment all images (child, mother, father)
-        data_out = face_parsing_test(input_images=data_list, blurring=args.segment)
+        data_out = face_parsing_test(input_images=data_list, blurring=args.segment-1)
         
         # Update to correct output format
         # TODO: Sofie
