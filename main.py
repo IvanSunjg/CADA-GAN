@@ -96,7 +96,7 @@ if __name__ == "__main__":
     parser.add_argument("--augmix", action=argparse.BooleanOptionalAction, help="argument to decide if you are going to use AugMix", type=bool)
     parser.add_argument("-p","--P", default=1.0, help="argument to decide the propability of using the Augmentation",type=float)
     parser.add_argument("--smart", action=argparse.BooleanOptionalAction, help="argument to decide if you are going to use SmartAugment", type=bool)
-    parser.add_argument("--segment", default=0, help="Segmentation type: 0 is no segmentation, 1 is color segmentation, 2 is blurred segmentation", type=int, choices=[0, 1, 2])
+    parser.add_argument("--segment", default=0, help="Segmentation type: 0 is no segmentation, 1 is color segmentation, 2 is mix, 3 is blurred segmentation", type=int, choices=[0, 1, 2, 3])
 
     # Argument to decide which dataset to use
     parser.add_argument("--dataset","-d",default="FMD", help="argument to decide which dataset to use. Default setting is FMD", type=str)
