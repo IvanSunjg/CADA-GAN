@@ -45,10 +45,14 @@ def main(args):
     elif args.augment and args.smart:
         pass
 
-    # Add basic unaugmented dataset 
-    # TODO: Jiugeng Sun
+    # Basic Unaugmented Dataset 
     else:
-        pass
+        dataset = ImageFolder(
+            root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
+            transform = transforms.Compose([
+                transforms.ToTensor(),
+            ])
+        )
     
     
    # Use Image Segmentation.
