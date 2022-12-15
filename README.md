@@ -1,7 +1,9 @@
 # Context-Aware GAN with Feature Augmentation
 
 To be continued
-
+### 0 -- Child (daughter/son)
+### 1 -- Father
+### 2 -- Mother
 
 ## Installation
 First, ensure you have an environment that functions with python=3.9.
