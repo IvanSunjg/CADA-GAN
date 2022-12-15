@@ -12,6 +12,10 @@ from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 
 import matplotlib.pyplot as plt
 
+from PipelineGAN.stylegan_train import load, embedding_function, style_transfer
+
+
+
 def main(args):
 
     # Branch when you decide to use the Image Augmentation.
@@ -21,6 +25,7 @@ def main(args):
         default_dataset = ImageFolder(
             root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
             transform = transforms.Compose([
+                transforms.CenterCrop((1024, 1024)),
                 transforms.ToTensor(),
             ])
         )
@@ -28,10 +33,10 @@ def main(args):
             root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
             transform = [
                 transforms.ToTensor(),
+                transforms.CenterCrop((1024, 1024)),
                 A.P(A.MixUp(dataset=default_dataset), p=args.P)
             ]
         )
-
  
     # AugMix
     elif args.augment and args.augmix:
@@ -40,6 +45,7 @@ def main(args):
             root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
             transform = [
                 transforms.ToTensor(),
+                transforms.CenterCrop((1024, 1024)),
                 A.P(A.AugMix(), p=args.P)
             ]
         )
@@ -53,6 +59,7 @@ def main(args):
         dataset = ImageFolder(
             root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
             transform = transforms.Compose([
+                transforms.CenterCrop((1024, 1024)),
                 transforms.ToTensor(),
             ])
         )
@@ -77,7 +84,45 @@ def main(args):
     # GAN projection into latent space
     # TODO: Jiaqing Xie
     if args.gan == "image2stylegan":
-        
+
+        _, g_synthesis = load(args)
+
+
+        idx = 0
+        c_idx = []
+        f_idx = []
+        m_idx = []
+
+        for image, label in dataset:
+            if label == 0:
+                c_idx.append(idx)
+            elif label == 1:
+                f_idx.append(idx)
+            elif label == 2:
+                m_idx.append(idx)
+            idx+=1
+
+        for f, m in zip(f_idx,m_idx):
+
+            # father image
+            image_f = dataset[f][0]
+            image_f = image_f[None, :]
+            image_f = image_f.to(args.device)
+
+            # mother image
+            image_m = dataset[m][0]
+            image_m = image_m[None, :]
+            image_m = image_m.to(args.device)
+            
+            latent_f = embedding_function(image_f, args, g_synthesis)
+            latent_m = embedding_function(image_m, args, g_synthesis)
+
+            style_transfer(latent_f, latent_m, f, m)
+            break
+
+
+            
+    
 
     # Feature selection
     # TODO: Jiaqing Xie
@@ -109,7 +154,13 @@ if __name__ == "__main__":
     parser.add_argument("--gan", default="image2stylegan", type=str, help="gan type we used to generate images")
     parser.add_argument("--batchsize", default=32,type=int, help="batch size")
     parser.add_argument("--pretrain", action=argparse.BooleanOptionalAction, help="decide if you are going to use pretrained vgg model")
-    
+    parser.add_argument("--use_cuda", action='store', default=True, type=bool)
+    parser.add_argument("--model_dir", action='store', default="pretrain_stylegan", type=str)
+    parser.add_argument("--model_name", action='store', default="karras2019stylegan-ffhq-1024x1024.pt", type=str)
+    parser.add_argument("--lr", action='store', default=0.01, type=float)
+    parser.add_argument("--epochs", action='store', default=3000, type=int)
+    parser.add_argument("--device", default='cuda:0', help='whether use gpu or not')
+
 
     # Argument to decide which dataset to use
     parser.add_argument("--dataset","-d",default="FMD", help="argument to decide which dataset to use. Default setting is FMD", type=str)

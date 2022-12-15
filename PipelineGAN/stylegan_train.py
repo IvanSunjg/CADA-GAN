@@ -62,3 +62,16 @@ def embedding_function(image, args, g_synthesis):
     # plt.plot(loss_psnr, label='PSNR')
     # plt.legend()
     return latents
+
+
+def style_transfer(target_latent, style_latent, src, tgt, g_synthesis):
+    '''
+        style transfer
+    '''
+    tmp_latent1 = target_latent[:, :10, :]
+    tmp_latent2 = style_latent[:, 10:, :]
+    latent = torch.cat((tmp_latent1, tmp_latent2), dim=1)
+    print(latent.shape)
+    syn_img = g_synthesis(latent)
+    syn_img = (syn_img + 1.0) / 2.0
+    save_image(syn_img.clamp(0, 1), "Style_transfer_{}_{}_10.png".format(src, tgt))
