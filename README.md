@@ -1,7 +1,9 @@
 # Context-Aware GAN with Feature Augmentation
 
 To be continued
-
+### 0 -- Child (daughter/son)
+### 1 -- Father
+### 2 -- Mother
 
 ## Installation
 First, ensure you have an environment that functions with python=3.9.
@@ -16,7 +18,7 @@ Once finished, please install the following requirements file.
 pip install -r requirement.txt
 ```
 
-For image segmentation, please enter the following lines in your command prompt, starting from your working directory.
+#### For image segmentation, please enter the following lines in your command prompt, starting from your working directory.
 ```bash
 cd ImageSegmentation
 cd face_parsing
@@ -33,11 +35,22 @@ pip install -e .
 cd ../../../
 ```
 
-For image augmentation, please enter the following lines in your command prompt.
+#### For image augmentation, please enter the following lines in your command prompt.
+
+The library can be installed from GitHub using `pip`.
+
+For Linux and MacOS:
 ```bash
+pip install 'git+https://github.com/IvanSunjg/ETH_DL_2022.git#egg=augmentations&subdirectory=ImageAugmentation'
 ```
 
-For the GAN pipeline, please enter the following lines in your command prompt.
+For Windows:
+```bash
+pip install 'git+https://github.com/IvanSunjg/ETH_DL_2022.git#egg=augmentations^&subdirectory=ImageAugmentation'
+```
+For more details of the Image Augmentation, please check the Readme file inside the ImageAugmentation folder.
+
+#### For the GAN pipeline, please enter the following lines in your command prompt.
 ```bash
 ```
 
