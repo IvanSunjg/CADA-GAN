@@ -28,28 +28,24 @@ class _Mix():
     '''
     Superclass for transformations that require image mixing of the mother and father.
     '''
-
-    def __init__(self, dataset):
-        self.dataset = dataset
-
-    def get_mix_item(self, idx):
+    def get_mix_item(self, idx, n):
 
         # If the image target is dad
-        if idx >=456 or idx < 684:
-            mix_idx = idx + 228
+        if idx >=0 and idx < n:
+            mix_idx = idx + n
         
         # If the image target is mother
-        elif idx >= 684:
-            mix_idx = idx - 228
-        
-        else:
-            raise ValueError(f'index you pass to Mix class is wrong! Please make sure the index of the image belongs to either Mother or Father!')
-        
+        elif idx >= n and idx < 2 * n:
+            mix_idx = idx - n
+
         mix_image, mix_label = self.dataset[mix_idx]
 
         return mix_image
 
-class MixUp(_Mix, IndexTransform):
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+class MixUp_FMD(_Mix, IndexTransform):
 
     def __init__(self, dataset, alpha=0.2, min_lam=0.3, max_lam=0.7):
         super().__init__(dataset)
@@ -60,8 +56,51 @@ class MixUp(_Mix, IndexTransform):
 
     def __call__(self, img, idx):
 
-        mix_image = super().get_mix_item(idx=idx)
-        img = utils.mixup(img, mix_image, alpha=self.alpha, min_lam=self.min_lam, max_lam=self.max_lam)
+        if idx < 274 * 2:
+            mix_image = super().get_mix_item(idx=idx,n=274)
+            img = utils.mixup(img, mix_image, alpha=self.alpha, min_lam=self.min_lam, max_lam=self.max_lam)
+
+        return img
+    
+    def __repr__(self):
+        return self.__class__.__name__ + f'(alpha={self.alpha}, min_lam={self.min_lam}, max_lam={self.max_lam})'
+
+
+class MixUp_FMS(_Mix, IndexTransform):
+
+    def __init__(self, dataset, alpha=0.2, min_lam=0.3, max_lam=0.7):
+        super().__init__(dataset)
+
+        self.alpha = alpha
+        self.min_lam = min_lam
+        self.max_lam = max_lam
+
+    def __call__(self, img, idx):
+
+        if idx < 285 * 2:
+            mix_image = super().get_mix_item(idx=idx,n=285)
+            img = utils.mixup(img, mix_image, alpha=self.alpha, min_lam=self.min_lam, max_lam=self.max_lam)
+
+        return img
+    
+    def __repr__(self):
+        return self.__class__.__name__ + f'(alpha={self.alpha}, min_lam={self.min_lam}, max_lam={self.max_lam})'
+
+
+class MixUp_FMSD(_Mix, IndexTransform):
+
+    def __init__(self, dataset, alpha=0.2, min_lam=0.3, max_lam=0.7):
+        super().__init__(dataset)
+
+        self.alpha = alpha
+        self.min_lam = min_lam
+        self.max_lam = max_lam
+
+    def __call__(self, img, idx):
+
+        if idx < 228 * 2:
+            mix_image = super().get_mix_item(idx=idx,n=228)
+            img = utils.mixup(img, mix_image, alpha=self.alpha, min_lam=self.min_lam, max_lam=self.max_lam)
 
         return img
     

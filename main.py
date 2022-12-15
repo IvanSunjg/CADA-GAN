@@ -29,14 +29,33 @@ def main(args):
                 transforms.ToTensor(),
             ])
         )
-        dataset = TSKinDataset(
-            root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
-            transform = [
-                transforms.ToTensor(),
-                transforms.CenterCrop((1024, 1024)),
-                A.P(A.MixUp(dataset=default_dataset), p=args.P)
-            ]
-        )
+        if args.dataset == 'FMD':
+            dataset = TSKinDataset(
+                root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
+                transform = [
+                    transforms.ToTensor(),
+                    transforms.CenterCrop((1024, 1024)),
+                    A.P(A.MixUp_FMD(dataset=default_dataset), p=args.P)
+                ]
+            )
+        elif args.dataset == 'FMS':
+            dataset = TSKinDataset(
+                root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
+                transform = [
+                    transforms.ToTensor(),
+                    transforms.CenterCrop((1024, 1024)),
+                    A.P(A.MixUp_FMS(dataset=default_dataset), p=args.P)
+                ]
+            )
+        elif args.dataset == 'FMSD':
+            dataset = TSKinDataset(
+                root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
+                transform = [
+                    transforms.ToTensor(),
+                    transforms.CenterCrop((1024, 1024)),
+                    A.P(A.MixUp_FMSD(dataset=default_dataset), p=args.P)
+                ]
+            )
  
     # AugMix
     elif args.augment and args.augmix:
