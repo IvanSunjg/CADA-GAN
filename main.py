@@ -10,6 +10,7 @@ from torchvision.datasets import ImageFolder
 from torchvision import transforms
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 
+import matplotlib.pyplot as plt
 
 def main(args):
 
@@ -30,6 +31,8 @@ def main(args):
                 A.P(A.MixUp(dataset=default_dataset), p=args.P)
             ]
         )
+
+ 
     # AugMix
     elif args.augment and args.augmix:
         # logging.info("Image Augmentation is being used. Method is AugMix. Probability is "+str(args.P))
@@ -69,6 +72,8 @@ def main(args):
 
     # GAN projection into latent space
     # TODO: Jiaqing Xie
+    if args.gan == "image2stylegan":
+        
 
     # Feature selection
     # TODO: Jiaqing Xie
@@ -97,6 +102,10 @@ if __name__ == "__main__":
     parser.add_argument("-p","--P", default=1.0, help="argument to decide the propability of using the Augmentation",type=float)
     parser.add_argument("--smart", action=argparse.BooleanOptionalAction, help="argument to decide if you are going to use SmartAugment", type=bool)
     parser.add_argument("--segment", default=0, help="Segmentation type: 0 is no segmentation, 1 is color segmentation, 2 is mix, 3 is blurred segmentation", type=int, choices=[0, 1, 2, 3])
+    parser.add_argument("--gan", default="image2stylegan", type=str, help="gan type we used to generate images")
+    parser.add_argument("--batchsize", default=32,type=int, help="batch size")
+    parser.add_argument("--pretrain", action=argparse.BooleanOptionalAction, help="decide if you are going to use pretrained vgg model")
+    
 
     # Argument to decide which dataset to use
     parser.add_argument("--dataset","-d",default="FMD", help="argument to decide which dataset to use. Default setting is FMD", type=str)
