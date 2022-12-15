@@ -62,7 +62,7 @@ def embedding_function(image):
         if (e + 1) % 500 == 0:
             print("iter{}: loss -- {},  mse_loss --{},  percep_loss --{}, psnr --{}".format(e + 1, loss_np, loss_m,
                                                                                             loss_p, psnr))
-            save_image(syn_img.clamp(0, 1), "save_images/image2stylegan/reconstruction/reconstruct_{}.png".format(e + 1))
+            save_image(syn_img.clamp(0, 1), "save_images/reconstruct_{}.png".format(e + 1))
 
     plt.plot(loss_, label='Loss = MSELoss + Perceptual')
     plt.plot(loss_psnr, label='PSNR')
@@ -95,12 +95,13 @@ def style_transfer(target_latent, style_latent, src, tgt):
     save_image(syn_img.clamp(0, 1), "save_images/image2stylegan/style_transfer/Style_transfer_{}_{}_10.png".format(src, tgt))
 
 
-img_path = os.path.join(args.images_dir, "0.png")
+img_path = os.path.join(args.images_dir, "geeks.jpg")
 image0 = image_reader(img_path)
 image0 = image0.to(device)
 
 
 latent0 = embedding_function(image0)
+print(latent0.shape)
 
 
 # morphing(latent4, latent5, 4, 5)
