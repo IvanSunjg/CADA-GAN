@@ -114,11 +114,11 @@ def main(args):
 
         for image, label in dataset:
             if label == 0:
-                c_idx.append(idx)
-            elif label == 1:
                 f_idx.append(idx)
-            elif label == 2:
+            elif label == 1:
                 m_idx.append(idx)
+            elif label == 2:
+                c_idx.append(idx)
             idx+=1
 
         for f, m in zip(f_idx,m_idx):
@@ -136,12 +136,8 @@ def main(args):
             latent_f = embedding_function(image_f, args, g_synthesis)
             latent_m = embedding_function(image_m, args, g_synthesis)
 
-            style_transfer(latent_f, latent_m, f, m)
+            style_transfer(latent_f, latent_m, f, m, g_synthesis)
             break
-
-
-            
-    
 
     # Feature selection
     # TODO: Jiaqing Xie
