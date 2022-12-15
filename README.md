@@ -34,8 +34,19 @@ cd ../../../
 ```
 
 For image augmentation, please enter the following lines in your command prompt.
+
+The library can be installed from GitHub using `pip`.
+
+For Linux and MacOS:
 ```bash
+pip install 'git+https://github.com/IvanSunjg/ETH_DL_2022.git#egg=augmentations&subdirectory=ImageAugmentation'
 ```
+
+For Windows:
+```bash
+pip install 'git+https://github.com/IvanSunjg/ETH_DL_2022.git#egg=augmentations^&subdirectory=ImageAugmentation'
+```
+For more details of the Image Augmentation, please check the Readme file inside the ImageAugmentation folder.
 
 For the GAN pipeline, please enter the following lines in your command prompt.
 ```bash
