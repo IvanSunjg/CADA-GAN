@@ -15,12 +15,9 @@ import imageio
 
 def test_pix2pix(test, path_model, output):
     # load and prepare training images
-    def load_real_samples(filename):
-        X1_path, X2_path = os.listdir(filename + '/seg'), os.listdir(filename + '/orig')
-        X1_path.sort()
-        X2_path.sort()
-        X1 = numpy.asarray([numpy.asarray(imageio.imread(filename + '/seg/' + j), dtype=numpy.uint8) for j in X1_path])
-        X2 = numpy.asarray([numpy.asarray(imageio.imread(filename + '/orig/' + j), dtype=numpy.uint8) for j in X2_path])
+    def load_real_samples(dataset):
+        X1 = numpy.asarray(dataset[0])
+        X2 = numpy.asarray(dataset[1])
         # scale from [0,255] to [-1,1]
         X1 = (X1 - 127.5) / 127.5
         X2 = (X2 - 127.5) / 127.5
@@ -40,10 +37,8 @@ def test_pix2pix(test, path_model, output):
     def generate_real_samples(dataset, n_samples, patch_shape):
         # unpack dataset
         trainA, trainB = dataset
-        # choose random instances
-        ix = randint(0, trainA.shape[0], n_samples)
         # retrieve selected images
-        X1, X2 = trainA[ix], trainB[ix]
+        X1, X2 = trainA, trainB
         # generate 'real' class labels (1)
         y = ones((n_samples, patch_shape, patch_shape, 1))
         return [X1, X2], y
@@ -76,6 +71,8 @@ def test_pix2pix(test, path_model, output):
             filename1 = path_test_plots + '/plot_%03d.png' % (i+1)
             pyplot.savefig(filename1)
             pyplot.close()
+        
+        return X_fakeB
 
 
     # load image data
@@ -88,7 +85,8 @@ def test_pix2pix(test, path_model, output):
     # define the models
     g_model = tf.keras.models.load_model(path_model, compile=False)
     # evaluate model
-    summarize_performance(g_model, dataset_test, path_test_plots)
+    data_result = summarize_performance(g_model, dataset_test, path_test_plots)
     del(g_model)
     gc.collect()
     tf.keras.backend.clear_session()
+    return data_result
