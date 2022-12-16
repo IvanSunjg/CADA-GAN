@@ -92,5 +92,3 @@ def test_pix2pix(test, path_model, output):
     del(g_model)
     gc.collect()
     tf.keras.backend.clear_session()
-
-test_pix2pix('C:/Users/Veerle/Desktop/Seg/Seg2/test/', 'C:/Users/Veerle/Desktop/Seg/Seg2/models/model_32000.h5', 'C:/Users/Veerle/Desktop/Seg/Seg2/')
