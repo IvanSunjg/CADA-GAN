@@ -4,11 +4,14 @@
 import argparse
 import logging
 import numpy as np
+import torch
 from augmentations import augmentations as A
 from augmentations.TSKinFace_Dataset import TSKinDataset
 from torchvision.datasets import ImageFolder
 from torchvision import transforms
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
+from ImageSegmentation.pix2pixGAN.test import test_pix2pix
+from MLP import FourLayerNet
 
 import matplotlib.pyplot as plt
 
@@ -86,20 +89,19 @@ def main(args):
     
    # Use Image Segmentation.
     if args.segment:
-        data_list = []
-        label_list = [] # What do the labels mean??
+        data_in = []
+        label_list = []
         for images, labels in dataset:
-            data_list.append(np.transpose(images.numpy(), (1, 2, 0)))
+            data_in.append(np.transpose(images.numpy(), (1, 2, 0)))
             label_list.append(labels)
-        data_list = np.asarray(data_list)
+        data_in = np.asarray(data_in)
 
         # Segment all images (child, mother, father)
-        data_out = face_parsing_test(input_images=data_list, blurring=args.segment-1)
+        data_out = face_parsing_test(input_images=data_in, blurring=args.segment-1)
         
-        # Update to correct output format
-        # TODO: Sofie
-        dataset_out = list(zip(data_out, label_list))        
-
+        # List of original images, segmented images, labels
+        data_list_seg = list(zip(data_in, data_out, label_list))      
+      
     # GAN projection into latent space
     # TODO: Jiaqing Xie
     if args.gan == "image2stylegan":
@@ -114,11 +116,11 @@ def main(args):
 
         for image, label in dataset:
             if label == 0:
-                f_idx.append(idx)
-            elif label == 1:
-                m_idx.append(idx)
-            elif label == 2:
                 c_idx.append(idx)
+            elif label == 1:
+                f_idx.append(idx)
+            elif label == 2:
+                m_idx.append(idx)
             idx+=1
 
         for f, m in zip(f_idx,m_idx):
@@ -136,23 +138,47 @@ def main(args):
             latent_f = embedding_function(image_f, args, g_synthesis)
             latent_m = embedding_function(image_m, args, g_synthesis)
 
-            style_transfer(latent_f, latent_m, f, m, g_synthesis)
+            style_transfer(latent_f, latent_m, f, m)
             break
 
+
     # Feature selection
-    # TODO: Jiaqing Xie
+    # TODO: Jiaqing Xie please check if it works
+    model = FourLayerNet()
+    loss_f = torch.nn.MSELoss(reduction='sum')
+    optim = torch.optim.Adam(model.parameters(), lr=0.01)
 
     # GAN from latent space back to image
     # TODO: Jiaqing Xie
 
-    # Loss function (compare generated child image with real child image,
+    # Loss function OF FOURLAYER NET!!! (compare generated child image with real child image,
     # possibly segmented if args.segment > 0)
     # TODO: Jiaqing Xie
 
+    
     # Undo image segmentation
     # TODO: Sofie Daniëls
+    # parents → list of tuples: original image, segmented image
+    data_list_fathers = []
+    data_list_mothers = []
+    # children → list of quadruplets: original image, segmented image, generated segmented image
+    data_list_GAN_out = []
     if args.segment:
-        pass
+        data_list_seg_gen = []
+        data_list_real = []
+        data_list_seg = []
+        for (orig, seg, gen) in data_list_GAN_out:
+            data_list_seg_gen.append(np.transpose(gen.numpy(), (1, 2, 0)))
+            data_list_real.append(orig)
+            data_list_seg.append(seg)
+
+        data_list_real_gen = test_pix2pix([data_list_seg_gen, data_list_real], args.model, 'Output/')
+
+        # list of octoplets of following images:
+        # F orig, F seg, M orig, M seg, C orig, C seg, C generated segmentation, C generated real
+        # (With F = father, M = mother, C = child, seg = segmented, orig = original)
+        data_list_final = list(zip(data_list_fathers, data_list_mothers, data_list_real, data_list_seg, data_list_seg_gen, data_list_real_gen))
+
 
 
 if __name__ == "__main__":
@@ -166,6 +192,7 @@ if __name__ == "__main__":
     parser.add_argument("-p","--P", default=1.0, help="argument to decide the propability of using the Augmentation",type=float)
     parser.add_argument("--smart", action=argparse.BooleanOptionalAction, help="argument to decide if you are going to use SmartAugment", type=bool)
     parser.add_argument("--segment", default=0, help="Segmentation type: 0 is no segmentation, 1 is color segmentation, 2 is mix, 3 is blurred segmentation", type=int, choices=[0, 1, 2, 3])
+    parser.add_argument("--model", help="Path to pretrained pix2pix GAN model", type=str)
     parser.add_argument("--gan", default="image2stylegan", type=str, help="gan type we used to generate images")
     parser.add_argument("--batchsize", default=32,type=int, help="batch size")
     parser.add_argument("--pretrain", action=argparse.BooleanOptionalAction, help="decide if you are going to use pretrained vgg model")
@@ -187,6 +214,9 @@ if __name__ == "__main__":
     ## TODO: Jiaqing Xie
     if args.P > 1.0 or args.P < 0.0:
         raise ValueError("The Probability for argument -p has to be between 0.0 and 1.0!!")
+
+    if args.segment > 0 and args.model is None:
+        raise ValueError("Please specify the model path for the pix2pix GAN")
 
     if not args.augment:
         if args.mixup or args.augmix or args.smart:
