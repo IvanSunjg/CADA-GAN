@@ -6,6 +6,7 @@ To be continued
 ### 1 -- Mother
 ### 2 -- Child (daughter/son)
 
+
 ## Installation
 First, ensure you have an environment that functions with python=3.9.
 
@@ -51,9 +52,20 @@ pip install 'git+https://github.com/IvanSunjg/ETH_DL_2022.git#egg=augmentations^
 ```
 For more details of the Image Augmentation, please check the Readme file inside the ImageAugmentation folder.
 
+## GAN
+
+### 1. Pretrained VGG:
+We take the advantage of pretrained VGG model from https://drive.google.com/drive/folders/1Zo5MV8DMzO_fn3gOMzrUvBxF7oKlN6dN (torch_version). You can download one there or download https://drive.google.com/drive/folders/1aAYxZMKkESr32mNxIrqKx6sh-D8vytdH.  You should place it under `pretrain_stylegan` folder under the root.
+
+### 2. Pretrained High-resolution
+We are considering about changing the 
+
+
 #### For the GAN pipeline, please enter the following lines in your command prompt.
 ```bash
 ```
+
+
 
 ## Running
 
