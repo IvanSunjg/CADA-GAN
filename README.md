@@ -71,5 +71,5 @@ We are considering about changing the
 
 Example: run with augmentation (mixup) and color segmentation
 ```bash
-python main.py --augment --mixup --segment 1
+python main.py --augment --mixup --segment 1 --model 'ImageSegmentation/pix2pixGAN/models/model_seg2.h5'
 ```
