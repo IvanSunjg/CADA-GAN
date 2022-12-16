@@ -9,6 +9,7 @@ from augmentations import augmentations as A
 from augmentations.TSKinFace_Dataset import TSKinDataset
 from torchvision.datasets import ImageFolder
 from torchvision import transforms
+from torchvision.utils import save_image
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 from ImageSegmentation.pix2pixGAN.test import test_pix2pix
 from MLP import FourLayerNet
@@ -16,6 +17,7 @@ from MLP import FourLayerNet
 import matplotlib.pyplot as plt
 
 from PipelineGAN.stylegan_train import load, embedding_function, style_transfer
+from PipelineGAN.utils import PSNR
 
 
 
@@ -26,7 +28,7 @@ def main(args):
     if args.augment and args.mixup:
         # logging.info("Image Augmentation is being used. Method is MixUp. Probability is "+str(args.P))
         default_dataset = ImageFolder(
-            root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
+            root = args.data_path + args.dataset+'/',
             transform = transforms.Compose([
                 transforms.CenterCrop((1024, 1024)),
                 transforms.ToTensor(),
@@ -34,7 +36,7 @@ def main(args):
         )
         if args.dataset == 'FMD':
             dataset = TSKinDataset(
-                root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
+                root = args.data_path + args.dataset+'/',
                 transform = [
                     transforms.ToTensor(),
                     transforms.CenterCrop((1024, 1024)),
@@ -43,7 +45,7 @@ def main(args):
             )
         elif args.dataset == 'FMS':
             dataset = TSKinDataset(
-                root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
+                root = args.data_path + args.dataset+'/',
                 transform = [
                     transforms.ToTensor(),
                     transforms.CenterCrop((1024, 1024)),
@@ -52,7 +54,7 @@ def main(args):
             )
         elif args.dataset == 'FMSD':
             dataset = TSKinDataset(
-                root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
+                root = args.data_path + args.dataset+'/',
                 transform = [
                     transforms.ToTensor(),
                     transforms.CenterCrop((1024, 1024)),
@@ -64,7 +66,7 @@ def main(args):
     elif args.augment and args.augmix:
         # logging.info("Image Augmentation is being used. Method is AugMix. Probability is "+str(args.P))
         dataset = TSKinDataset(
-            root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
+            root = args.data_path + args.dataset+'/',
             transform = [
                 transforms.ToTensor(),
                 transforms.CenterCrop((1024, 1024)),
@@ -79,7 +81,7 @@ def main(args):
     # Basic Unaugmented Dataset 
     else:
         dataset = ImageFolder(
-            root = 'dataset/TSKinFace_Data/TSKinFace_cropped/'+args.dataset+'/',
+            root = args.data_path + args.dataset+'/',
             transform = transforms.Compose([
                 transforms.CenterCrop((1024, 1024)),
                 transforms.ToTensor(),
@@ -116,11 +118,11 @@ def main(args):
 
         for image, label in dataset:
             if label == 0:
-                c_idx.append(idx)
-            elif label == 1:
                 f_idx.append(idx)
-            elif label == 2:
+            elif label == 1:
                 m_idx.append(idx)
+            elif label == 2:
+                c_idx.append(idx)
             idx+=1
 
         for f, m in zip(f_idx,m_idx):
@@ -135,18 +137,39 @@ def main(args):
             image_m = image_m[None, :]
             image_m = image_m.to(args.device)
             
-            latent_f = embedding_function(image_f, args, g_synthesis)
-            latent_m = embedding_function(image_m, args, g_synthesis)
+            latent_f = embedding_function(image_f, args, g_synthesis).to(args.device)
+            latent_m = embedding_function(image_m, args, g_synthesis).to(args.device)
 
-            style_transfer(latent_f, latent_m, f, m)
             break
 
 
     # Feature selection
     # TODO: Jiaqing Xie please check if it works
-    model = FourLayerNet()
+    model_f = FourLayerNet().to(args.device)
+    model_m = FourLayerNet().to(args.device)
     loss_f = torch.nn.MSELoss(reduction='sum')
-    optim = torch.optim.Adam(model.parameters(), lr=0.01)
+    optim = torch.optim.Adam(list(model_f.parameters()) + list(model_m.parameters()),  lr=args.lr)
+
+
+    for i in range(args.epochs):
+        optim.zero_grad()
+        new_latent_f = model_f(latent_f)
+        new_latent_m = model_m(latent_m)
+        latent = torch.cat((new_latent_f, new_latent_m), dim=2)
+        syn_child_img = g_synthesis(latent)
+
+        true_child_img = dataset[c_idx[0]][0]
+        true_child_img = true_child_img[None, :]
+        true_child_img = true_child_img.to(args.device)
+
+        loss = loss_f(syn_child_img, true_child_img)
+        psnr = PSNR(loss, flag=0)
+        loss.backward()
+        optim.step()
+        if (i + 1) % 500 == 0:
+            print("iter{}: , mse_loss --{}, psnr --{}".format(i + 1, loss, psnr))
+            save_image(syn_child_img.clamp(0, 1), "save_images/reconstruct_{}.png".format(i + 1))
+
 
     # GAN from latent space back to image
     # TODO: Jiaqing Xie
@@ -199,10 +222,10 @@ if __name__ == "__main__":
     parser.add_argument("--use_cuda", action='store', default=True, type=bool)
     parser.add_argument("--model_dir", action='store', default="pretrain_stylegan", type=str)
     parser.add_argument("--model_name", action='store', default="karras2019stylegan-ffhq-1024x1024.pt", type=str)
-    parser.add_argument("--lr", action='store', default=0.01, type=float)
-    parser.add_argument("--epochs", action='store', default=3000, type=int)
-    parser.add_argument("--device", default='cuda:0', help='whether use gpu or not')
-
+    parser.add_argument("--lr", action='store', default=0.015, type=float)
+    parser.add_argument("--epochs", action='store', default=1000, type=int)
+    parser.add_argument("--device", default='cuda:0', help="whether use gpu or not")
+    parser.add_argument("--data_path", default='dataset/TSKinFace_Data/TSKinFace_cropped/', help="dataset path", type=str)
 
     # Argument to decide which dataset to use
     parser.add_argument("--dataset","-d",default="FMD", help="argument to decide which dataset to use. Default setting is FMD", type=str)
