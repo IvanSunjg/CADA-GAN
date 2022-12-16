@@ -17,8 +17,8 @@ from MLP import FourLayerNet
 import matplotlib.pyplot as plt
 
 from PipelineGAN.stylegan_train import load, embedding_function, style_transfer
-from PipelineGAN.utils import PSNR
-
+from PipelineGAN.utils import PSNR, loss_function
+from PipelineGAN.VGG16 import VGG16_perceptual
 
 
 def main(args):
@@ -151,19 +151,29 @@ def main(args):
     optim = torch.optim.Adam(list(model_f.parameters()) + list(model_m.parameters()),  lr=args.lr)
 
 
+
+
+    true_child_img = dataset[c_idx[0]][0]
+    true_child_img = true_child_img[None, :]
+    true_child_img = true_child_img.to(args.device)
+    upsample = torch.nn.Upsample(scale_factor=256 / 1024, mode='bilinear')
+    img_p = image.clone()
+    img_p = upsample(img_p)
+
+
     for i in range(args.epochs):
+
+ 
         optim.zero_grad()
         new_latent_f = model_f(latent_f)
         new_latent_m = model_m(latent_m)
         latent = torch.cat((new_latent_f, new_latent_m), dim=2)
         syn_child_img = g_synthesis(latent)
 
-        true_child_img = dataset[c_idx[0]][0]
-        true_child_img = true_child_img[None, :]
-        true_child_img = true_child_img.to(args.device)
-
-        loss = loss_f(syn_child_img, true_child_img)
-        psnr = PSNR(loss, flag=0)
+        perceptual = VGG16_perceptual().to(args.device)
+        mse, per_loss = loss_function(syn_child_img ,true_child_img, img_p, loss_f, upsample, perceptual)
+        psnr = PSNR(mse, flag=0)
+        loss = per_loss + mse
         loss.backward()
         optim.step()
         if (i + 1) % 500 == 0:
@@ -173,11 +183,7 @@ def main(args):
 
     # GAN from latent space back to image
     # TODO: Jiaqing Xie
-
-    # Loss function OF FOURLAYER NET!!! (compare generated child image with real child image,
-    # possibly segmented if args.segment > 0)
-    # TODO: Jiaqing Xie
-
+    syn_child_img = g_synthesis(latent)
     
     # Undo image segmentation
     # TODO: Sofie Daniëls
