@@ -8,7 +8,10 @@ To be continued
 
 
 ## Installation
-First, ensure you have an environment that functions with python=3.9.
+First, ensure you have an environment that functions with python=3.9. E.g create one in conda using:
+```bash
+conda create -n envname python=3.9
+```
 
 Download the repository and unzip in a location of your choice.
 ```bash
