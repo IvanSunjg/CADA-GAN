@@ -52,7 +52,6 @@ def face_parsing_test(input_images, blurring=0, facebox=False, benchmark=False, 
     for im in input_images:
         # Get a new frame
         frame = np.ndarray.astype(np.round(im.copy()*255, 0), np.uint8)
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         # Detect faces
         start_time = time.time()
         faces = face_detector(frame, rgb=False)
