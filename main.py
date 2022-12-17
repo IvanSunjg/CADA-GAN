@@ -231,9 +231,9 @@ def main(args):
         for i, im in enumerate(data_list_real_gen):
             if args.dataset == 'FMSD':
                 if i%2 == 0:
-                    imageio.imwrite(result_path + args.dataset + "-{}-D.png".format((i + 2/2)), im)
+                    imageio.imwrite(result_path + args.dataset + "-{}-D.png".format((i + 2)/2), im)
                 else:
-                    imageio.imwrite(result_path + args.dataset + "-{}-S.png".format((i + 1/2)), im)
+                    imageio.imwrite(result_path + args.dataset + "-{}-S.png".format((i + 1)/2), im)
             else:
                 imageio.imwrite(child_path + args.dataset + "-{}-".format(i + 1) + args.dataset[-1] + ".png", im)
 
