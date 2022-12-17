@@ -4,6 +4,6 @@ torch>=1.1.0
 torchvision>=0.3.0
 opencv-python>= 3.4.2
 tensorflow==2.11.0
-
+logging
 matplotlib
 imageio
