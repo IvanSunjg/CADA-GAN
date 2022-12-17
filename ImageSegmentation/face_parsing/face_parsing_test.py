@@ -51,8 +51,8 @@ def face_parsing_test(input_images, blurring=0, facebox=False, benchmark=False, 
     print('Processing images in ')
     for im in input_images:
         # Get a new frame
-        frame = im.copy()
-
+        frame = np.ndarray.astype(np.round(im.copy()*255, 0), np.uint8)
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         # Detect faces
         start_time = time.time()
         faces = face_detector(frame, rgb=False)
@@ -61,46 +61,55 @@ def face_parsing_test(input_images, blurring=0, facebox=False, benchmark=False, 
         # Textural output
         print(f'Image #{image_number} processed in {elapsed_time * 1000.0:.04f} ms: ' +
             f'{len(faces)} faces detected.')
-
-        # Parse faces
-        start_time = time.time()
-        masks = face_parser.predict_img(frame, faces, rgb=False)
-        elapsed_time = time.time() - start_time
-
-
-        # Textural output
-        print(f'Image #{image_number} processed in {elapsed_time * 1000.0:.04f} ms: ' +
-            f'{len(masks)} faces parsed.')
-
-        # # Rendering
-        dst = frame.copy()
-        if blurring:
-            blur = cv2.blur(frame, (5,5))
-            blur_index = np.zeros((len(faces), frame.shape[0], frame.shape[1], frame.shape[2]))
-        for i, (face, mask) in enumerate(zip(faces, masks)):
-            if facebox:
-                bbox = face[:4].astype(int)
-                cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color=(
-                    0, 0, 255), thickness=2)
-            alpha = alphas[i]
-            index = mask > 0
-            if blurring:
-                b = mask <= 1 # blurring skin + background
-                blur_index[i] = np.stack((b, b, b), axis=-1)
-            res = colormap[mask]
-            dst[index] = (1 - alpha) * frame[index].astype(float) + \
-                alpha * res[index].astype(float)
-        dst = np.clip(dst.round(), 0, 255).astype(np.uint8)
-        if blurring == 1:
-            for i in range(0, len(faces)):
-                frame = np.where(blur_index[i], blur, dst)
-        elif blurring == 2:
-            for i in range(0, len(faces)):
-                frame = np.where(blur_index[i], blur, frame)
+        if len(faces) == 0:
+            print('problem')
+            #cv2.imshow('image', frame)
+            #cv2.waitKey(0)
+            #cv2.destroyAllWindows()
+            assert 0
         else:
-            frame = dst
+            # Parse faces
+            start_time = time.time()
+            masks = face_parser.predict_img(frame, faces, rgb=False)
+            elapsed_time = time.time() - start_time
 
-        output_images[image_number] = frame
-        image_number += 1
+
+            # Textural output
+            print(f'Image #{image_number} processed in {elapsed_time * 1000.0:.04f} ms: ' +
+                f'{len(masks)} faces parsed.')
+            
+            # # Rendering
+            dst = frame.copy()
+            if blurring:
+                blur = cv2.blur(frame, (5,5))
+                blur_index = np.zeros((len(faces), frame.shape[0], frame.shape[1], frame.shape[2]))
+            for i, (face, mask) in enumerate(zip(faces, masks)):
+                if facebox:
+                    bbox = face[:4].astype(int)
+                    cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color=(
+                        0, 0, 255), thickness=2)
+                alpha = alphas[i]
+                index = mask > 0
+                if blurring:
+                    b = mask <= 1 # blurring skin + background
+                    blur_index[i] = np.stack((b, b, b), axis=-1)
+                res = colormap[mask]
+                dst[index] = (1 - alpha) * frame[index].astype(float) + \
+                    alpha * res[index].astype(float)
+            dst = np.clip(dst.round(), 0, 255).astype(np.uint8)
+            if blurring == 1:
+                for i in range(0, len(faces)):
+                    frame = np.where(blur_index[i], blur, dst)
+            elif blurring == 2:
+                for i in range(0, len(faces)):
+                    frame = np.where(blur_index[i], blur, frame)
+            else:
+                frame = dst
+
+            output_images[image_number] = frame
+            image_number += 1
+            #cv2.imshow('image', frame)
+            #cv2.waitKey(0)
+            #cv2.destroyAllWindows()
 
     return output_images
