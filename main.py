@@ -6,8 +6,8 @@ import logging
 import numpy as np
 import torch
 import os
-from ImageAugmentation.augmentations import augmentations as A
-from ImageAugmentation.augmentations.TSKinFace_Dataset import TSKinDataset
+from augmentations import augmentations as A
+from augmentations.TSKinFace_Dataset import TSKinDataset
 from torchvision.datasets import ImageFolder
 from torchvision import transforms
 from torchvision.utils import save_image
@@ -115,17 +115,22 @@ def main(args):
             os.makedirs(mother_path)
         if not os.path.exists(child_path):
             os.makedirs(child_path)
+        f = 0
+        m = 0
         for i, (im, label) in enumerate(list(zip(data_out, label_list))):
             if label == 0:
                 imageio.imwrite(father_path + args.dataset + "-{}-F.png".format(i + 1), im)
+                f += 1
+                m = f
             elif label == 1:
-                imageio.imwrite(mother_path + args.dataset + "-{}-M.png".format(i + 1), im)
+                imageio.imwrite(mother_path + args.dataset + "-{}-M.png".format((i + 1)-f), im)
+                m += 1
             elif i%2 == 0 and label == 2 and args.dataset == 'FMSD':
-                imageio.imwrite(child_path + args.dataset + "-{}-D.png".format((i + 2)/2), im)
+                imageio.imwrite(child_path + args.dataset + "-{}-D.png".format((i + 2 - m)/2), im)
             elif i%2 == 1 and label == 2 and args.dataset == 'FMSD':
-                imageio.imwrite(child_path + args.dataset + "-{}-S.png".format((i + 1/2)), im)
+                imageio.imwrite(child_path + args.dataset + "-{}-S.png".format((i + 1 - m)/2), im)
             elif label == 2:
-                imageio.imwrite(child_path + args.dataset + "-{}-".format(i + 1) + args.dataset[-1] + ".png", im)
+                imageio.imwrite(child_path + args.dataset + "-{}-".format(i + 1 - m) + args.dataset[-1] + ".png", im)
         
         dataset_orig = dataset
         dataset = ImageFolder(
