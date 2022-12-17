@@ -85,6 +85,7 @@ def main(args):
         dataset = ImageFolder(
             root = args.data_path + args.dataset+'/',
             transform = transforms.Compose([
+                transforms.CenterCrop((1024, 1024)),
                 transforms.ToTensor(),
             ])
         )
