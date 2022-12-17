@@ -6,8 +6,8 @@ import logging
 import numpy as np
 import torch
 import os
-from augmentations import augmentations as A
-from augmentations.TSKinFace_Dataset import TSKinDataset
+from ImageAugmentation.augmentations import augmentations as A
+from ImageAugmentation.augmentations.TSKinFace_Dataset import TSKinDataset
 from torchvision.datasets import ImageFolder
 from torchvision import transforms
 from torchvision.utils import save_image
@@ -21,7 +21,7 @@ import imageio
 from PipelineGAN.stylegan_train import load, embedding_function, style_transfer
 from PipelineGAN.utils import PSNR, loss_function
 from PipelineGAN.VGG16 import VGG16_perceptual
-
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 def main(args):
 
@@ -85,7 +85,6 @@ def main(args):
         dataset = ImageFolder(
             root = args.data_path + args.dataset+'/',
             transform = transforms.Compose([
-                transforms.CenterCrop((1024, 1024)),
                 transforms.ToTensor(),
             ])
         )
@@ -102,18 +101,19 @@ def main(args):
         data_in = np.asarray(data_in)
 
         # Segment all images (father, mother, child)
-        data_out = face_parsing_test(input_images=data_in, blurring=args.segment-1)
-        
+        data_out = face_parsing_test(input_images=data_in, blurring=args.segment-1, device=args.device)
+
+        # Save images to separate segmentation folder
         seg_path = args.data_path + args.dataset + '_seg/'
         father_path = seg_path + args.dataset + '-F/'
         mother_path = seg_path + args.dataset + '-M/'
         child_path = seg_path + args.dataset + '-Z/'
         if not os.path.exists(father_path):
-            os.makedir(father_path)
+            os.makedirs(father_path)
         if not os.path.exists(mother_path):
-            os.makedir(mother_path)
+            os.makedirs(mother_path)
         if not os.path.exists(child_path):
-            os.makedir(child_path)
+            os.makedirs(child_path)
         for i, (im, label) in enumerate(list(zip(data_out, label_list))):
             if label == 0:
                 imageio.imwrite(father_path + args.dataset + "-{}-F.png".format(i + 1), im)
@@ -126,7 +126,7 @@ def main(args):
             elif label == 2:
                 imageio.imwrite(child_path + args.dataset + "-{}-".format(i + 1) + args.dataset[-1] + ".png", im)
         
-        dataset_orig = dataset.copy()
+        dataset_orig = dataset
         dataset = ImageFolder(
             root = seg_path,
             transform = transforms.Compose([
@@ -203,11 +203,11 @@ def main(args):
             print("iter{}: , mse_loss --{}, psnr --{}".format(i + 1, loss, psnr))
             save_image(syn_child_img.clamp(0, 1), "save_images/reconstruct_{}.png".format(i + 1))
 
-
     # GAN from latent space back to image
     # TODO: Jiaqing Xie
     syn_child_img = g_synthesis(latent)
     
+
     # Undo image segmentation
     # TODO: Sofie Daniëls
     if args.segment:
@@ -221,7 +221,7 @@ def main(args):
 
         result_path = args.data_path + args.dataset + '_result/'
         if not os.path.exists(result_path):
-            os.makedir(result_path)
+            os.makedirs(result_path)
         for i, im in enumerate(data_list_real_gen):
             if args.dataset == 'FMSD':
                 if i%2 == 0:
@@ -248,12 +248,14 @@ if __name__ == "__main__":
                         help="argument to decide the propability of using the Augmentation")
     parser.add_argument("--smart", action=argparse.BooleanOptionalAction, type=bool,
                         help="argument to decide if you are going to use SmartAugment")
+
     parser.add_argument("--segment", default=0, type=int, choices=[0, 1, 2, 3],
                         help="Segmentation type: 0 is no segmentation, 1 is color segmentation, 2 is mix, 3 is blurred segmentation")
     parser.add_argument("--model", type=str, help="Path to pretrained pix2pix GAN model")
+
     parser.add_argument("--gan", default="image2stylegan", type=str,
                         help="gan type we used to generate images")
-    parser.add_argument("--batchsize", default=32,type=int, help="batch size")
+    parser.add_argument("--batchsize", default=32, type=int, help="batch size")
     parser.add_argument("--pretrain", action=argparse.BooleanOptionalAction,
                         help="decide if you are going to use pretrained vgg model")
     parser.add_argument("--use_cuda", action='store', default=True, type=bool)
@@ -262,8 +264,9 @@ if __name__ == "__main__":
                         default="karras2019stylegan-ffhq-1024x1024.pt", type=str)
     parser.add_argument("--lr", action='store', default=0.015, type=float)
     parser.add_argument("--epochs", action='store', default=1000, type=int)
-    parser.add_argument("--device", default='cuda:0', help="whether use gpu or not")
-    parser.add_argument("--data_path", default='dataset/TSKinFace_Data/TSKinFace_cropped/',
+    parser.add_argument("--device", default='cuda:0', help="Whether to use a GPU or not")
+
+    parser.add_argument("--data_path", default='dataset/TSKinFace_Data_HR/TSKinFace_cropped/',
                         type=str, help="dataset path")
 
     # Argument to decide which dataset to use
