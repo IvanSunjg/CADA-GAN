@@ -190,7 +190,14 @@ def main(args):
     true_child_img = true_child_img.to(args.device)
     upsample = torch.nn.Upsample(scale_factor=256 / 1024, mode='bilinear')
     img_p = image.clone()
+    #Sofie added the next line, as it gave an error during upsampling (requires 4d input instead of 3d)
+    img_p = img_p[None, :]
     img_p = upsample(img_p)
+    
+    #Sofie added the next line, as it gave an error (directory didn't exist)
+    if not os.path.exists('save_images/'):
+        print('Creating directory')
+        os.makedirs('save_images/')
 
     for i in range(args.epochs): 
         optim.zero_grad()
