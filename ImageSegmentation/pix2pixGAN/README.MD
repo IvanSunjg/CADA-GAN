@@ -8,6 +8,7 @@ A code base that undoes image segmentation with the help of Pix2PixGAN. The code
 * cudatoolkit (for GPU use)
 * cudnn (for GPU use)
 * tensorflow
+* scikit-image
 * matplotlib
 * imageio
 
