@@ -226,10 +226,10 @@ def main(args):
     if args.segment:
         data_list_seg_gen = []
         data_list_real = []
-        for im, label in syn_child_img:
-            data_list_seg_gen.append(np.transpose(im.numpy(), (1, 2, 0)))
-            data_list_real.append(np.transpose(next(iter(dataset_orig)).numpy(), (1, 2, 0)))
-
+        for im in syn_child_img:
+            data_list_seg_gen.append(np.transpose(im.clamp(0, 1).detach().numpy(), (1, 2, 0)))
+            nim, nlabel = next(iter(dataset_orig))
+            data_list_real.append(np.transpose(nim.numpy(), (1, 2, 0)))
         data_list_real_gen = test_pix2pix([data_list_seg_gen, data_list_real], args.model, 'Output/')
 
         result_path = args.data_path + args.dataset + '_result/'
