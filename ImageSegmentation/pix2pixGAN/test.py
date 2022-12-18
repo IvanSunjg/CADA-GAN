@@ -10,6 +10,9 @@ import os
 import gc
 import numpy
 import imageio
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
+from skimage.transform import resize
 
 # Parse command-line arguments
 
