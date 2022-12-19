@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from numpy.random import randint
 from numpy import zeros, ones
 import matplotlib
-matplotlib.use('TkAgg')
+#matplotlib.use('TkAgg')
 from matplotlib import pyplot
 
 import tensorflow as tf
@@ -20,12 +20,15 @@ import imageio
 # Parse command-line arguments
 parser = ArgumentParser()
 parser.add_argument('--train', '-i', help='Path to training images',
-					default='...')
+					default='.../train')
 parser.add_argument('--test', '-e', help='Path to test images',
-					default='...')
+					default='.../test/')
+parser.add_argument('--val', '-v', help='Path to validation images',
+					default='.../val/')
 parser.add_argument('--output', '-o', help='Path to output folder',
-					default='...')
-parser.add_argument('--testbatch', '-t', help='Number of images you want to test, has to be smaller than or equal to test dataset size',
+					default='.../output/')
+parser.add_argument('--testbatch', '-t',
+					help='Number of images you want to test, has to be smaller than or equal to validation dataset size',
 					type=int, default=1)
 parser.add_argument('--epochs', '-n', help='Number of epochs you want to train for',
 					type=int, default=5)
@@ -121,12 +124,16 @@ def define_generator(image_shape=(64,64,3)):
 	e3 = define_encoder_block(e2, 256)
 	e4 = define_encoder_block(e3, 512)
 	e5 = define_encoder_block(e4, 512)
+	e6 = define_encoder_block(e5, 512)
+	e7 = define_encoder_block(e6, 512)
 	# bottleneck, no batch norm and relu
-	b = Conv2D(512, (4,4), strides=(2,2), padding='same', kernel_initializer=init)(e5)
+	b = Conv2D(512, (4,4), strides=(2,2), padding='same', kernel_initializer=init)(e7)
 	b = Activation('relu')(b)
 	# decoder model
-	d3 = decoder_block(b, e5, 512)
-	d4 = decoder_block(d3, e4, 512)
+	d1 = decoder_block(b, e7, 512)
+	d2 = decoder_block(d1, e6, 512)
+	d3 = decoder_block(d2, e5, 512)
+	d4 = decoder_block(d3, e4, 512, dropout=False)
 	d5 = decoder_block(d4, e3, 256, dropout=False)
 	d6 = decoder_block(d5, e2, 128, dropout=False)
 	d7 = decoder_block(d6, e1, 64, dropout=False)
@@ -159,6 +166,8 @@ def define_gan(g_model, d_model, image_shape):
 # load and prepare training images
 def load_real_samples(filename):
 	X1_path, X2_path = os.listdir(filename + '/seg'), os.listdir(filename + '/orig')
+	X1_path.sort()
+	X2_path.sort()
 	X1 = numpy.asarray([numpy.asarray(imageio.imread(filename + '/seg/' + j), dtype=numpy.uint8) for j in X1_path])
 	X2 = numpy.asarray([numpy.asarray(imageio.imread(filename + '/orig/' + j), dtype=numpy.uint8) for j in X2_path])
 	# scale from [0,255] to [-1,1]
@@ -187,7 +196,7 @@ def generate_fake_samples(g_model, samples, patch_shape):
 	return X, y
 
 # generate samples and save as a plot and save the model
-def summarize_performance(step, g_model, dataset, path_train_plots, n_samples=3):
+def summarize_performance(step, g_model, dataset, path_train_plots, path_models, n_samples=3):
 	# select a sample of input images
 	[X_realA, X_realB], _ = generate_real_samples(dataset, n_samples, 1)
 	# generate a batch of fake samples
@@ -213,17 +222,25 @@ def summarize_performance(step, g_model, dataset, path_train_plots, n_samples=3)
 		pyplot.imshow(X_realB[i])
 	# save plot to file
 	filename1 = path_train_plots + '/plot_%03d.png' % (step+1)
-	pyplot.savefig(filename1)
+	pyplot.savefig(filename1, dpi=200)
 	pyplot.close()
+	
+	av_mse = 0
+	for i in range(n_samples):
+		av_mse += (numpy.square(X_fakeB[i] - X_realB[i])).mean(axis=None)
+	av_mse = av_mse/n_samples
+	print('> Batch MSE = %.6f' % (av_mse))
 
-	if (step+1) % 10 == 0:
+	if (step+1) % 1000 == 0 and (path_models is not None):
 		# save the generator model
 		filename2 = path_models + '/model_%03d.h5' % (step+1)
-		#g_model.save(filename2)
+		g_model.save(filename2)
 		print('>Saved: %s and %s' % (filename1, filename2))
 
 # train pix2pix models
-def train(d_model, g_model, gan_model, dataset, dataset_test, path_train_plots, path_test_plots, path_models, test_batch=5, n_epochs=4, n_batch=64):
+def train(d_model, g_model, gan_model, dataset, dataset_test, dataset_val, path_train_plots,
+	path_test_plots, path_val_plots, path_models, test_batch=5, n_epochs=4, n_batch=64):
+
 	# determine the output square shape of the discriminator
 	n_patch = d_model.output_shape[1]
 	# unpack dataset
@@ -232,7 +249,7 @@ def train(d_model, g_model, gan_model, dataset, dataset_test, path_train_plots, 
 	bat_per_epo = int(len(trainA) / n_batch)
 	# calculate the number of training iterations
 	n_steps = bat_per_epo * n_epochs
-	print('Start training for %d epochs in %d steps', n_epochs, n_steps)
+	print('Start training for %d epochs in %d steps' % (n_epochs, n_steps))
 	# manually enumerate epochs
 	for i in range(n_steps):
 		# select a batch of real samples
@@ -248,11 +265,14 @@ def train(d_model, g_model, gan_model, dataset, dataset_test, path_train_plots, 
 		# summarize performance
 		print('>%d, d1[%.3f] d2[%.3f] g[%.3f]' % (i+1, d_loss1, d_loss2, g_loss))
 		# summarize model performance
-		summarize_performance(i, g_model, dataset, path_train_plots, n_samples=test_batch)
+		if (i+1) % 500 == 0 or ((i+1) % 500 == 0 and (i+1) <= 2000):
+			summarize_performance(i, g_model, dataset, path_train_plots, path_models)
 		gc.collect()
-	test(n_steps, g_model, dataset_test, path_test_plots, path_models, test_batch)
+		if (i+1) % 1000 == 0 or ((i+1) % 500 == 0 and (i+1) <= 2000):
+			summarize_performance(i, g_model, dataset_val, path_val_plots, None)
+	test(n_steps, g_model, dataset_test, path_test_plots, len(dataset_test[0]))
 	
-def test(step, g_model, dataset, path_test_plots, path_models, n_samples=5):
+def test(step, g_model, dataset, path_test_plots, n_samples=5):
 	n_samples = min(n_samples, len(dataset[0]))
 	# select a sample of input images
 	X_realA, X_realB = dataset
@@ -273,7 +293,7 @@ def test(step, g_model, dataset, path_test_plots, path_models, n_samples=5):
 		pyplot.axis('off')
 		pyplot.imshow(im)
 		filename1 = path_test_plots +  '/test_' + str(i) + '_%03d.png' % (step+1)
-		pyplot.savefig(filename1)
+		pyplot.savefig(filename1, dpi=200)
 		pyplot.close()
 
 # load image data
@@ -283,11 +303,15 @@ if not os.path.exists(path_train_plots):
 path_models = args.output + '/models/'
 if not os.path.exists(path_models):
 	os.makedirs(path_models)
+path_val_plots = args.output + '/valplots/'
+if not os.path.exists(path_val_plots):
+	os.makedirs(path_val_plots)
 path_test_plots = args.output + '/testplots/'
 if not os.path.exists(path_test_plots):
 	os.makedirs(path_test_plots)
 dataset = load_real_samples(args.train)
 dataset_test = load_real_samples(args.test)
+dataset_val = load_real_samples(args.val)
 print('Loaded', dataset[0].shape, dataset[1].shape)
 print('Loaded', dataset_test[0].shape, dataset_test[1].shape)
 # define input shape based on the loaded dataset
@@ -300,7 +324,8 @@ g_model = define_generator(image_shape)
 # define the composite model
 gan_model = define_gan(g_model, d_model, image_shape)
 # train model
-train(d_model, g_model, gan_model, dataset, dataset_test, path_train_plots, path_test_plots, path_models,
+train(d_model, g_model, gan_model, dataset, dataset_test, dataset_val, path_train_plots,
+		path_test_plots, path_val_plots, path_models,
 		test_batch=args.testbatch, n_epochs=args.epochs, n_batch=args.batches)
 	
 	
