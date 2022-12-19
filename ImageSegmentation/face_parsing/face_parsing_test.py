@@ -9,7 +9,7 @@ from ibug.face_parsing import FaceParser as RTNetPredictor
 from ibug.face_parsing.utils import label_colormap
 
 
-def face_parsing_test(input_images, blurring=0, facebox=False, benchmark=False, threshold=0.8, encoder='rtnet50', decoder='fcn', max_num_faces=1, num_classes=11, weights=None, device='cuda:0'):
+def face_parsing_test(input_images, blurring=0, facebox=False, benchmark=False, threshold=0.8, encoder='rtnet50', decoder='fcn', max_num_faces=2, num_classes=11, weights=None, device='cuda:0'):
     '''
     IN
     --input_images: Array of input images
@@ -19,7 +19,7 @@ def face_parsing_test(input_images, blurring=0, facebox=False, benchmark=False, 
     --threshold: Detection threshold (default: 0.8)
     --encoder: Method to use, can be either rtnet50, resnet50, or rtnet101 (default: 'rtnet50')
     --decoder: Method to use, can be either fcn or deeplabv3plus (default: 'fcn')
-    --max_num_faces: Max number of faces (default: 1)
+    --max_num_faces: Max number of faces (default: 2)
     --num_classes: Face parsing classes (default: 11)
     --weights: Weights to load, can be resnet50 or mobilenet0.25 when using RetinaFace (default: None)
     --device: Device to be used by the model (default: cuda:0)
