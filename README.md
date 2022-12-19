@@ -39,6 +39,8 @@ cd roi_tanh_warping
 pip install -e .
 cd ../../../
 ```
+Note that the model weights for the pix2pix GAN have to be downloaded separately using the following link: https://polybox.ethz.ch/index.php/s/Kku0HvLrQS1UFC1.
+You can also find the resnet/rtnet weights there, in case git lfs was unable to properly download them.
 
 #### For image augmentation, please enter the following lines in your command prompt.
 
@@ -74,5 +76,5 @@ We are considering about changing the
 
 Example: run with augmentation (mixup) and color segmentation
 ```bash
-python main.py --augment --mixup --segment 1 --model 'ImageSegmentation/pix2pixGAN/models/model_seg2.h5'
+python main.py --augment --mixup --segment 3 --model 'ImageSegmentation/pix2pixGAN/models/model_seg2_256.h5'
 ```
