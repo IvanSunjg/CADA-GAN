@@ -2,7 +2,7 @@
 from numpy.random import randint
 from numpy import zeros, ones
 import matplotlib
-matplotlib.use('TkAgg')
+#matplotlib.use('TkAgg')
 from matplotlib import pyplot
 
 import tensorflow as tf
