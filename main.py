@@ -197,6 +197,7 @@ def main(args):
     img_p = dataset[c_idx[0]][0].clone()
     img_p = img_p[None, :]
     img_p = upsample(img_p)
+    img_p = img_p.to(args.device)
     for cid in c_idx[1:]:
         im = dataset[cid][0]
         im2 = dataset[cid][0].clone()
