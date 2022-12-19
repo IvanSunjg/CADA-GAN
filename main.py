@@ -91,7 +91,7 @@ def main(args):
             ])
         )
     
-    
+    print('Length of dataset ', len(dataset))
    # Use Image Segmentation.
     if args.segment:
         # logging.info("Image Segmentation is being applied to the parent images.
@@ -144,6 +144,8 @@ def main(args):
       
     # GAN projection into latent space
     # TODO: Jiaqing Xie
+    latent_f = []
+    latent_m = []
     if args.gan == "image2stylegan":
 
         _, g_synthesis = load(args)
@@ -174,10 +176,12 @@ def main(args):
             image_m = image_m[None, :]
             image_m = image_m.to(args.device)
             
-            latent_f = embedding_function(image_f, args, g_synthesis).to(args.device)
-            latent_m = embedding_function(image_m, args, g_synthesis).to(args.device)
+            if args.dataset == 'FMSD':
+                latent_f.append(embedding_function(image_f, args, g_synthesis).to(args.device))
+                latent_m.append(embedding_function(image_m, args, g_synthesis).to(args.device))
+            latent_f.append(embedding_function(image_f, args, g_synthesis).to(args.device))
+            latent_m.append(embedding_function(image_m, args, g_synthesis).to(args.device))
 
-            break
 
     # Feature selection
     # TODO: Jiaqing Xie please check if it works
@@ -187,41 +191,59 @@ def main(args):
     optim = torch.optim.Adam(list(model_f.parameters()) + list(model_m.parameters()),  lr=args.lr)
 
     true_child_img = dataset[c_idx[0]][0]
-    #plt.imshow(np.transpose(true_child_img.numpy(), (1,2,0)))
-    #plt.show()
     true_child_img = true_child_img[None, :]
     true_child_img = true_child_img.to(args.device)
     upsample = torch.nn.Upsample(scale_factor=256 / 1024, mode='bilinear')
-    img_p = image.clone()
-    #Sofie added the next line, as it gave an error during upsampling (requires 4d input instead of 3d)
+    img_p = dataset[c_idx[0]][0].clone()
     img_p = img_p[None, :]
     img_p = upsample(img_p)
+    for cid in c_idx[1:]:
+        im = dataset[cid][0]
+        im2 = dataset[cid][0].clone()
+        #plt.imshow(np.transpose(true_child_img.numpy(), (1,2,0)))
+        #plt.show()
+        im = im[None, :]
+        im2 = im2[None, :]
+        im = im.to(args.device)
+        im2 = upsample(im2)
+        true_child_img = torch.cat((true_child_img, im))
+        print('true child image shape ', true_child_img.shape)
+        img_p = torch.cat((img_p, im2))
+        print('imgp image shape ', img_p.shape)
+
     
     #Sofie added the next line, as it gave an error (directory didn't exist)
     if not os.path.exists('save_images/'):
         print('Creating directory')
         os.makedirs('save_images/')
-
     for i in range(args.epochs): 
-        optim.zero_grad()
-        new_latent_f = model_f(latent_f)
-        new_latent_m = model_m(latent_m)
-        latent = torch.cat((new_latent_f, new_latent_m), dim=2)
-        syn_child_img = g_synthesis(latent)
+        count = 0
+        for f, m, tc, p in zip(latent_f, latent_m, true_child_img, img_p):
+            optim.zero_grad()
+            new_latent_f = model_f(f)
+            new_latent_m = model_m(m)
+            latent = torch.cat((new_latent_f, new_latent_m), dim=2)
+            syn_child_img = g_synthesis(latent)
 
-        perceptual = VGG16_perceptual().to(args.device)
-        mse, per_loss = loss_function(syn_child_img ,true_child_img, img_p, loss_f, upsample, perceptual)
-        psnr = PSNR(mse, flag=0)
-        loss = per_loss + mse
-        loss.backward()
-        optim.step()
-        if (i + 1) % 500 == 0:
-            print("iter{}: , mse_loss --{}, psnr --{}".format(i + 1, loss, psnr))
-            save_image(syn_child_img.clamp(0, 1), "save_images/reconstruct_{}.png".format(i + 1))
+            perceptual = VGG16_perceptual().to(args.device)
+            mse, per_loss = loss_function(syn_child_img, tc[None, :], p[None, :], loss_f, upsample, perceptual)
+            psnr = PSNR(mse, flag=0)
+            loss = per_loss + mse
+            loss.backward()
+            optim.step()
+            if (i + 1) % 2 == 0:
+                print("iter{}: , mse_loss --{}, psnr --{}".format(i + 1, loss, psnr))
+                save_image(syn_child_img.clamp(0, 1), "save_images/reconstruct_{}_{}.png".format(i + 1, count))
+            count += 1
 
     # GAN from latent space back to image
     # TODO: Jiaqing Xie
-    syn_child_img = g_synthesis(latent)
+    syn_child_img = []
+    for f, m in zip(latent_f, latent_m): 
+        new_latent_f = model_f(f)
+        new_latent_m = model_m(m)
+        latent = torch.cat((new_latent_f, new_latent_m), dim=2)
+        syn_child_img.append(g_synthesis(latent))
     
 
     # Undo image segmentation
@@ -230,6 +252,7 @@ def main(args):
         data_list_seg_gen = []
         data_list_real = []
         for i, im in enumerate(syn_child_img):
+            im = im[0]
             data_list_seg_gen.append(np.transpose(im.clamp(0,1).detach().numpy(), (1, 2, 0))*255)
             nim = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))*255
             #plt.imshow(nim/255)
@@ -244,7 +267,7 @@ def main(args):
 
         #plt.imshow(data_list_seg_gen[0]/255)
         #plt.show()
-        data_list_real_gen = test_pix2pix([data_list_seg_gen, data_list_real], args.model, 'Output/')
+        data_list_real_gen = test_pix2pix([data_list_seg_gen, data_list_real], args.model, 'output/')
 
         result_path = args.data_path + args.dataset + '_result/'
         if not os.path.exists(result_path):
