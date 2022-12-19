@@ -19,8 +19,15 @@ from skimage.transform import resize
 def test_pix2pix(test, path_model, output):
     # load and prepare training images
     def load_real_samples(dataset):
+        
         X1 = numpy.asarray(dataset[0])
         X2 = numpy.asarray(dataset[1])
+        X1 = resize(X1, (X1.shape[0], 256, 256, 3), anti_aliasing=True)
+        X2 = resize(X2, (X2.shape[0], 256, 256, 3), anti_aliasing=True)
+        #pyplot.imshow(X1[0]/255)
+        #pyplot.show()
+        #pyplot.imshow(X2[0]/255)
+        #pyplot.show()
         # scale from [0,255] to [-1,1]
         X1 = (X1 - 127.5) / 127.5
         X2 = (X2 - 127.5) / 127.5
