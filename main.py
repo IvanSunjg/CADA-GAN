@@ -21,6 +21,7 @@ import imageio
 from PipelineGAN.stylegan_train import load, embedding_function, style_transfer
 from PipelineGAN.utils import PSNR, loss_function
 from PipelineGAN.VGG16 import VGG16_perceptual
+
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 def main(args):
@@ -126,9 +127,9 @@ def main(args):
                 imageio.imwrite(mother_path + args.dataset + "-{}-M.png".format((i + 1)-f), im)
                 m += 1
             elif i%2 == 0 and label == 2 and args.dataset == 'FMSD':
-                imageio.imwrite(child_path + args.dataset + "-{}-D.png".format((i + 2 - m)/2), im)
+                imageio.imwrite(child_path + args.dataset + "-{}-D.png".format(int((i + 2 - m)/2)), im)
             elif i%2 == 1 and label == 2 and args.dataset == 'FMSD':
-                imageio.imwrite(child_path + args.dataset + "-{}-S.png".format((i + 1 - m)/2), im)
+                imageio.imwrite(child_path + args.dataset + "-{}-S.png".format(int((i + 1 - m)/2)), im)
             elif label == 2:
                 imageio.imwrite(child_path + args.dataset + "-{}-".format(i + 1 - m) + args.dataset[-1] + ".png", im)
         
@@ -186,6 +187,8 @@ def main(args):
     optim = torch.optim.Adam(list(model_f.parameters()) + list(model_m.parameters()),  lr=args.lr)
 
     true_child_img = dataset[c_idx[0]][0]
+    #plt.imshow(np.transpose(true_child_img.numpy(), (1,2,0)))
+    #plt.show()
     true_child_img = true_child_img[None, :]
     true_child_img = true_child_img.to(args.device)
     upsample = torch.nn.Upsample(scale_factor=256 / 1024, mode='bilinear')
@@ -226,23 +229,35 @@ def main(args):
     if args.segment:
         data_list_seg_gen = []
         data_list_real = []
-        for im in syn_child_img:
-            data_list_seg_gen.append(np.transpose(im.clamp(0, 1).detach().numpy(), (1, 2, 0)))
-            nim, nlabel = next(iter(dataset_orig))
-            data_list_real.append(np.transpose(nim.numpy(), (1, 2, 0)))
+        for i, im in enumerate(syn_child_img):
+            data_list_seg_gen.append(np.transpose(im.clamp(0,1).detach().numpy(), (1, 2, 0))*255)
+            nim = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))*255
+            #plt.imshow(nim/255)
+            #plt.show()
+            black_row = ~np.all(np.all(nim==0, axis=1), axis=1)
+            black_col = ~np.all(np.all(nim==0, axis=0), axis=1)
+            nim = nim[black_row,:,:] #remove all black rows
+            nim = nim[:,black_col,:] #remove all black columns
+            #plt.imshow(nim/255)
+            #plt.show()
+            data_list_real.append(nim)
+
+        #plt.imshow(data_list_seg_gen[0]/255)
+        #plt.show()
         data_list_real_gen = test_pix2pix([data_list_seg_gen, data_list_real], args.model, 'Output/')
 
         result_path = args.data_path + args.dataset + '_result/'
         if not os.path.exists(result_path):
             os.makedirs(result_path)
+        print(data_list_real_gen.shape)
         for i, im in enumerate(data_list_real_gen):
             if args.dataset == 'FMSD':
                 if i%2 == 0:
-                    imageio.imwrite(result_path + args.dataset + "-{}-D.png".format((i + 2)/2), im)
+                    imageio.imwrite(result_path + args.dataset + "-{}-D.png".format(int((i + 2)/2)), im)
                 else:
-                    imageio.imwrite(result_path + args.dataset + "-{}-S.png".format((i + 1)/2), im)
+                    imageio.imwrite(result_path + args.dataset + "-{}-S.png".format(int((i + 1)/2)), im)
             else:
-                imageio.imwrite(child_path + args.dataset + "-{}-".format(i + 1) + args.dataset[-1] + ".png", im)
+                imageio.imwrite(result_path + args.dataset + "-{}-".format(i + 1) + args.dataset[-1] + ".png", im)
 
 
 
