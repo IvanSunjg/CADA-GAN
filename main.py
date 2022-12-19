@@ -206,6 +206,7 @@ def main(args):
         im2 = im2[None, :]
         im = im.to(args.device)
         im2 = upsample(im2)
+        im2 = im2.to(args.device)
         true_child_img = torch.cat((true_child_img, im))
         print('true child image shape ', true_child_img.shape)
         img_p = torch.cat((img_p, im2))
