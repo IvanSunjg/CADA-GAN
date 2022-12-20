@@ -2,6 +2,7 @@
 # Please make sure every dependency is installed in the requirements.txt file.
 
 import argparse
+import gc
 import logging
 import numpy as np
 import torch
@@ -91,12 +92,12 @@ def main(args):
             ])
         )
     
-    # logging.info('Length of dataset ', len(dataset))
+    print('Length of dataset ', len(dataset))
    # Use Image Segmentation.
     if args.segment:
-        seg_path = args.data_path + args.dataset + '_seg/'
+        seg_path = args.data_path + args.dataset + '_seg_' + str(args.segment-1) + '/'
         if not args.load_seg:
-            logging.info("Image Segmentation is being applied to the parent images.")
+            print("Image Segmentation is being applied to the parent images.")
             data_in = []
             label_list = []
             for images, labels in dataset:
@@ -105,7 +106,7 @@ def main(args):
             data_in = np.asarray(data_in)
 
             # Segment all images (father, mother, child)
-            logging.info(len(data_in))
+            # print(len(data_in))
             data_out = face_parsing_test(input_images=data_in, blurring=args.segment-1, device=args.device)
 
             # Save images to separate segmentation folder
@@ -175,7 +176,7 @@ def main(args):
                         delete_list.append(i)
                         delete_list.append(i - l)
                         delete_list.append(i - 2*l)
-        logging.info("Image Segmentation Dataset is loading.")
+        print("Image Segmentation Dataset is loading.")
         dataset_orig = dataset
         dataset = ImageFolder(
             root = seg_path,
@@ -257,11 +258,27 @@ def main(args):
 
     
     #Sofie added the next line, as it gave an error (directory didn't exist)
-    if not os.path.exists('save_images/'):
-        # logging.info('Creating directory')
-        os.makedirs('save_images/')
+    path = 'temp/' + args.dataset
+    if args.segment != 0:
+        path = path + '_seg' + str(args.segment-1)
+    if args.augment:
+        path = path + '_aug-'
+        if args.mixup:
+            path = path + 'mixup/'
+        else:
+            path = path + 'augmix/'
+    else:
+        path = path + '/'
+
+    if not os.path.exists(path):
+        print('Creating directory')
+        os.makedirs(path)
+    if not os.path.exists(path + 'gan_reconstr/'):
+        os.makedirs(path + 'gan_reconstr/')
+    print(len(latent_f), len(latent_m), true_child_img.shape, img_p.shape)
     for i in range(args.epochs): 
         for count, (f, m, tc, p) in enumerate(zip(latent_f, latent_m, true_child_img, img_p)):
+            print(i, count)
             optim.zero_grad()
             new_latent_f = model_f(f)
             new_latent_m = model_m(m)
@@ -277,47 +294,60 @@ def main(args):
                 optim.step()
                 optim.zero_grad(set_to_none=True)
             if (i + 1) % 2 == 0:
-                logging.info("iter{}: , mse_loss --{}, psnr --{}".format(i + 1, loss, psnr))
-                save_image(syn_child_img.clamp(0, 1), "save_images/reconstruct_{}_{}.png".format(i + 1, count))
+                print("iter{}: , mse_loss --{}, psnr --{}".format(i + 1, loss, psnr))
+                save_image(syn_child_img.clamp(0, 1), path + "gan_reconstr/reconstruct_{}_{}.png".format(i + 1, count))
+            torch.cuda.empty_cache()
+            del new_latent_f
+            del new_latent_m
+            del syn_child_img
+            del latent
+            gc.collect()
             torch.cuda.empty_cache()
 
     # GAN from latent space back to image
-    # TODO: Jiaqing Xie
-    syn_child_img = []
-    for f, m in zip(latent_f, latent_m): 
-        new_latent_f = model_f(f)
-        new_latent_m = model_m(m)
-        latent = torch.cat((new_latent_f, new_latent_m), dim=2)
-        syn_child_img.append(g_synthesis(latent))
     
 
     # Undo image segmentation
     # TODO: Sofie Daniëls
-    if args.segment:
-        data_list_seg_gen = []
-        data_list_real = []
-        for i, im in enumerate(syn_child_img):
-            im = im[0]
-            data_list_seg_gen.append(np.transpose(im.clamp(0,1).detach().numpy(), (1, 2, 0))*255)
-            nim = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))*255
-            #plt.imshow(nim/255)
-            #plt.show()
-            black_row = ~np.all(np.all(nim==0, axis=1), axis=1)
-            black_col = ~np.all(np.all(nim==0, axis=0), axis=1)
-            nim = nim[black_row,:,:] #remove all black rows
-            nim = nim[:,black_col,:] #remove all black columns
-            #plt.imshow(nim/255)
-            #plt.show()
-            data_list_real.append(nim)
+    data_list_seg_gen = []
+    data_list_real = []
+    for i, (f, m) in enumerate(zip(latent_f, latent_m)):
+        print('syn child img', count)
+        new_latent_f = model_f(f)
+        new_latent_m = model_m(m)
+        latent = torch.cat((new_latent_f, new_latent_m), dim=2)
+        syn_child_img = g_synthesis(latent)
+        syn_child_img = syn_child_img[0]
+        data_list_seg_gen.append(np.transpose(syn_child_img.clamp(0,1).detach().cpu().numpy(), (1, 2, 0))*255)
+        nim = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))*255
+        #plt.imshow(nim/255)
+        #plt.show()
+        black_row = ~np.all(np.all(nim==0, axis=1), axis=1)
+        black_col = ~np.all(np.all(nim==0, axis=0), axis=1)
+        nim = nim[black_row,:,:] #remove all black rows
+        nim = nim[:,black_col,:] #remove all black columns
+        #plt.imshow(nim/255)
+        #plt.show()
+        data_list_real.append(nim)
+        torch.cuda.empty_cache()
+        del syn_child_img
+        del new_latent_f
+        del new_latent_m
+        del latent
+        gc.collect()
+        torch.cuda.empty_cache()
 
+    if args.segment:
         #plt.imshow(data_list_seg_gen[0]/255)
         #plt.show()
-        data_list_real_gen = test_pix2pix([data_list_seg_gen, data_list_real], args.model, 'output/')
+        if not os.path.exists(path + 'pix2pix_out/'):
+            os.makedirs(path + 'pix2pix_out/')
+        data_list_real_gen = test_pix2pix([data_list_seg_gen, data_list_real], args.model, path + 'pix2pix_out/')
 
         result_path = args.data_path + args.dataset + '_result/'
         if not os.path.exists(result_path):
             os.makedirs(result_path)
-        logging.info(data_list_real_gen.shape)
+        # logging.info(data_list_real_gen.shape)
         for i, im in enumerate(data_list_real_gen):
             if args.dataset == 'FMSD':
                 if i%2 == 0:
@@ -326,8 +356,6 @@ def main(args):
                     imageio.imwrite(result_path + args.dataset + "-{}-S.png".format(int((i + 1)/2)), im)
             else:
                 imageio.imwrite(result_path + args.dataset + "-{}-".format(i + 1) + args.dataset[-1] + ".png", im)
-
-
 
 
 if __name__ == "__main__":
