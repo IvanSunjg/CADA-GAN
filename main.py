@@ -91,48 +91,91 @@ def main(args):
             ])
         )
     
-    print('Length of dataset ', len(dataset))
+    # logging.info('Length of dataset ', len(dataset))
    # Use Image Segmentation.
     if args.segment:
-        # logging.info("Image Segmentation is being applied to the parent images.
-        data_in = []
-        label_list = []
-        for images, labels in dataset:
-            data_in.append(np.transpose(images.numpy(), (1, 2, 0)))
-            label_list.append(labels)
-        data_in = np.asarray(data_in)
-
-        # Segment all images (father, mother, child)
-        data_out = face_parsing_test(input_images=data_in, blurring=args.segment-1, device=args.device)
-
-        # Save images to separate segmentation folder
         seg_path = args.data_path + args.dataset + '_seg/'
-        father_path = seg_path + args.dataset + '-F/'
-        mother_path = seg_path + args.dataset + '-M/'
-        child_path = seg_path + args.dataset + '-Z/'
-        if not os.path.exists(father_path):
-            os.makedirs(father_path)
-        if not os.path.exists(mother_path):
-            os.makedirs(mother_path)
-        if not os.path.exists(child_path):
-            os.makedirs(child_path)
-        f = 0
-        m = 0
-        for i, (im, label) in enumerate(list(zip(data_out, label_list))):
-            if label == 0:
-                imageio.imwrite(father_path + args.dataset + "-{}-F.png".format(i + 1), im)
-                f += 1
-                m = f
-            elif label == 1:
-                imageio.imwrite(mother_path + args.dataset + "-{}-M.png".format((i + 1)-f), im)
-                m += 1
-            elif i%2 == 0 and label == 2 and args.dataset == 'FMSD':
-                imageio.imwrite(child_path + args.dataset + "-{}-D.png".format(int((i + 2 - m)/2)), im)
-            elif i%2 == 1 and label == 2 and args.dataset == 'FMSD':
-                imageio.imwrite(child_path + args.dataset + "-{}-S.png".format(int((i + 1 - m)/2)), im)
-            elif label == 2:
-                imageio.imwrite(child_path + args.dataset + "-{}-".format(i + 1 - m) + args.dataset[-1] + ".png", im)
-        
+        if not args.load_seg:
+            logging.info("Image Segmentation is being applied to the parent images.")
+            data_in = []
+            label_list = []
+            for images, labels in dataset:
+                data_in.append(np.transpose(images.numpy(), (1, 2, 0)))
+                label_list.append(labels)
+            data_in = np.asarray(data_in)
+
+            # Segment all images (father, mother, child)
+            logging.info(len(data_in))
+            data_out = face_parsing_test(input_images=data_in, blurring=args.segment-1, device=args.device)
+
+            # Save images to separate segmentation folder
+            father_path = seg_path + args.dataset + '-F/'
+            mother_path = seg_path + args.dataset + '-M/'
+            child_path = seg_path + args.dataset + '-Z/'
+            if not os.path.exists(father_path):
+                os.makedirs(father_path)
+            if not os.path.exists(mother_path):
+                os.makedirs(mother_path)
+            if not os.path.exists(child_path):
+                os.makedirs(child_path)
+            f = 0
+            m = 0
+            l = len(data_out)
+            if args.dataset == 'FMSD':
+                l = l/4
+            else:
+                l = l/3
+            delete_list = []
+            for i, (im, label) in enumerate(list(zip(data_out, label_list))):
+                if label == 0:
+                    if np.any(im):
+                        imageio.imwrite(father_path + args.dataset + "-{}-F.png".format(i + 1), im)
+                        f += 1
+                        m = f
+                    else:
+                        delete_list.append(i)
+                        delete_list.append(i + l)
+                        if args.dataset == 'FMSD':
+                            delete_list.append(2*(i + l))
+                            delete_list.append(2*(i + l) + 1)
+                        else:
+                            delete_list.append(i + 2*l)
+                elif label == 1:
+                    if np.any(im):
+                        imageio.imwrite(mother_path + args.dataset + "-{}-M.png".format((i + 1)-f), im)
+                        m += 1
+                    else:
+                        delete_list.append(i)
+                        delete_list.append(i - l)
+                        if args.dataset == 'FMSD':
+                            delete_list.append(2*i)
+                            delete_list.append(2*i + 1)
+                        else:
+                            delete_list.append(i + l)
+                elif i%2 == 0 and label == 2 and args.dataset == 'FMSD':
+                    if np.any(im):
+                        imageio.imwrite(child_path + args.dataset + "-{}-D.png".format(int((i + 2 - m)/2)), im)
+                    else:
+                        delete_list.append(i)
+                        delete_list.append(i+1)
+                        delete_list.append(i/2)
+                        delete_list.append(i/2 - l)
+                elif i%2 == 1 and label == 2 and args.dataset == 'FMSD':
+                    if np.any(im):
+                        imageio.imwrite(child_path + args.dataset + "-{}-S.png".format(int((i + 1 - m)/2)), im)
+                    else:
+                        delete_list.append(i-1)
+                        delete_list.append(i)
+                        delete_list.append((i-1)/2)
+                        delete_list.append((i-1)/2 - l)
+                elif label == 2:
+                    if np.any(im):
+                        imageio.imwrite(child_path + args.dataset + "-{}-".format(i + 1 - m) + args.dataset[-1] + ".png", im)
+                    else:
+                        delete_list.append(i)
+                        delete_list.append(i - l)
+                        delete_list.append(i - 2*l)
+        logging.info("Image Segmentation Dataset is loading.")
         dataset_orig = dataset
         dataset = ImageFolder(
             root = seg_path,
@@ -182,6 +225,7 @@ def main(args):
             latent_f.append(embedding_function(image_f, args, g_synthesis).to(args.device))
             latent_m.append(embedding_function(image_m, args, g_synthesis).to(args.device))
 
+    torch.cuda.empty_cache()
 
     # Feature selection
     # TODO: Jiaqing Xie please check if it works
@@ -192,12 +236,12 @@ def main(args):
 
     true_child_img = dataset[c_idx[0]][0]
     true_child_img = true_child_img[None, :]
-    true_child_img = true_child_img.to(args.device)
+    true_child_img = true_child_img
     upsample = torch.nn.Upsample(scale_factor=256 / 1024, mode='bilinear')
     img_p = dataset[c_idx[0]][0].clone()
     img_p = img_p[None, :]
     img_p = upsample(img_p)
-    img_p = img_p.to(args.device)
+    img_p = img_p
     for cid in c_idx[1:]:
         im = dataset[cid][0]
         im2 = dataset[cid][0].clone()
@@ -205,22 +249,19 @@ def main(args):
         #plt.show()
         im = im[None, :]
         im2 = im2[None, :]
-        im = im.to(args.device)
+        im = im
         im2 = upsample(im2)
-        im2 = im2.to(args.device)
+        im2 = im2
         true_child_img = torch.cat((true_child_img, im))
-        print('true child image shape ', true_child_img.shape)
         img_p = torch.cat((img_p, im2))
-        print('imgp image shape ', img_p.shape)
 
     
     #Sofie added the next line, as it gave an error (directory didn't exist)
     if not os.path.exists('save_images/'):
-        print('Creating directory')
+        # logging.info('Creating directory')
         os.makedirs('save_images/')
     for i in range(args.epochs): 
-        count = 0
-        for f, m, tc, p in zip(latent_f, latent_m, true_child_img, img_p):
+        for count, (f, m, tc, p) in enumerate(zip(latent_f, latent_m, true_child_img, img_p)):
             optim.zero_grad()
             new_latent_f = model_f(f)
             new_latent_m = model_m(m)
@@ -228,15 +269,17 @@ def main(args):
             syn_child_img = g_synthesis(latent)
 
             perceptual = VGG16_perceptual().to(args.device)
-            mse, per_loss = loss_function(syn_child_img, tc[None, :], p[None, :], loss_f, upsample, perceptual)
+            mse, per_loss = loss_function(syn_child_img, tc[None, :].to(args.device), p[None, :].to(args.device), loss_f, upsample, perceptual)
             psnr = PSNR(mse, flag=0)
             loss = per_loss + mse
             loss.backward()
-            optim.step()
+            if (count+1) % 16 == 0 or (count+1) == len(latent_f):
+                optim.step()
+                optim.zero_grad(set_to_none=True)
             if (i + 1) % 2 == 0:
-                print("iter{}: , mse_loss --{}, psnr --{}".format(i + 1, loss, psnr))
+                logging.info("iter{}: , mse_loss --{}, psnr --{}".format(i + 1, loss, psnr))
                 save_image(syn_child_img.clamp(0, 1), "save_images/reconstruct_{}_{}.png".format(i + 1, count))
-            count += 1
+            torch.cuda.empty_cache()
 
     # GAN from latent space back to image
     # TODO: Jiaqing Xie
@@ -274,7 +317,7 @@ def main(args):
         result_path = args.data_path + args.dataset + '_result/'
         if not os.path.exists(result_path):
             os.makedirs(result_path)
-        print(data_list_real_gen.shape)
+        logging.info(data_list_real_gen.shape)
         for i, im in enumerate(data_list_real_gen):
             if args.dataset == 'FMSD':
                 if i%2 == 0:
@@ -305,6 +348,8 @@ if __name__ == "__main__":
     parser.add_argument("--segment", default=0, type=int, choices=[0, 1, 2, 3],
                         help="Segmentation type: 0 is no segmentation, 1 is color segmentation, 2 is mix, 3 is blurred segmentation")
     parser.add_argument("--model", type=str, help="Path to pretrained pix2pix GAN model")
+    parser.add_argument("--load-seg", default=False, type=bool,
+                        help="Whether to load previous segmentations or start anew")
 
     parser.add_argument("--gan", default="image2stylegan", type=str,
                         help="gan type we used to generate images")
