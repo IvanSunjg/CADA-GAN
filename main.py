@@ -30,7 +30,7 @@ def main(args):
     # Branch when you decide to use the Image Augmentation.
     # MixUp
     if args.augment and args.mixup:
-        # logging.info("Image Augmentation is being used. Method is MixUp. Probability is "+str(args.P))
+        print("Image Augmentation is being used. Method is MixUp. Probability is "+str(args.P))
         default_dataset = ImageFolder(
             root = args.data_path + args.dataset+'/',
             transform = transforms.Compose([
@@ -68,7 +68,7 @@ def main(args):
  
     # AugMix
     elif args.augment and args.augmix:
-        # logging.info("Image Augmentation is being used. Method is AugMix. Probability is "+str(args.P))
+        print("Image Augmentation is being used. Method is AugMix. Probability is "+str(args.P))
         dataset = TSKinDataset(
             root = args.data_path + args.dataset+'/',
             transform = [
@@ -93,9 +93,19 @@ def main(args):
         )
     
     print('Length of dataset ', len(dataset))
-   # Use Image Segmentation.
+    # Use Image Segmentation.
+    dataset_orig = dataset
     if args.segment:
-        seg_path = args.data_path + args.dataset + '_seg_' + str(args.segment-1) + '/'
+        seg_path = args.data_path + args.dataset + '_seg_' + str(args.segment-1)
+        if args.augment:
+            seg_path = seg_path + '_aug-'
+            if args.mixup:
+                seg_path = seg_path + 'mixup/'
+            else:
+                seg_path = seg_path + 'augmix/'
+        else:
+            seg_path = seg_path + '/'
+
         if not args.load_seg:
             print("Image Segmentation is being applied to the parent images.")
             data_in = []
@@ -176,7 +186,9 @@ def main(args):
                         delete_list.append(i)
                         delete_list.append(i - l)
                         delete_list.append(i - 2*l)
-        print("Image Segmentation Dataset is loading.")
+
+        print("Image Segmentation Dataset is loaded.")
+
         dataset_orig = dataset
         dataset = ImageFolder(
             root = seg_path,
@@ -186,8 +198,27 @@ def main(args):
             ])
         )    
       
+    path = 'temp/' + args.dataset
+    if args.segment != 0:
+        path = path + '_seg' + str(args.segment-1)
+    if args.augment:
+        path = path + '_aug-'
+        if args.mixup:
+            path = path + 'mixup/'
+        else:
+            path = path + 'augmix/'
+    else:
+        path = path + '/'
+
+    if not os.path.exists(path):
+        print('Creating directory')
+        os.makedirs(path)
+    if not os.path.exists(path + 'gan_reconstr/'):
+        os.makedirs(path + 'gan_reconstr/')
+    
     # GAN projection into latent space
     # TODO: Jiaqing Xie
+    print('Converting parent images to latent space with Image2StyleGAN')
     latent_f = []
     latent_m = []
     if args.gan == "image2stylegan":
@@ -230,6 +261,7 @@ def main(args):
 
     # Feature selection
     # TODO: Jiaqing Xie please check if it works
+    print('Setting up feature selection.')
     model_f = FourLayerNet().to(args.device)
     model_m = FourLayerNet().to(args.device)
     loss_f = torch.nn.MSELoss(reduction='sum')
@@ -256,26 +288,7 @@ def main(args):
         true_child_img = torch.cat((true_child_img, im))
         img_p = torch.cat((img_p, im2))
 
-    
-    #Sofie added the next line, as it gave an error (directory didn't exist)
-    path = 'temp/' + args.dataset
-    if args.segment != 0:
-        path = path + '_seg' + str(args.segment-1)
-    if args.augment:
-        path = path + '_aug-'
-        if args.mixup:
-            path = path + 'mixup/'
-        else:
-            path = path + 'augmix/'
-    else:
-        path = path + '/'
-
-    if not os.path.exists(path):
-        print('Creating directory')
-        os.makedirs(path)
-    if not os.path.exists(path + 'gan_reconstr/'):
-        os.makedirs(path + 'gan_reconstr/')
-    print(len(latent_f), len(latent_m), true_child_img.shape, img_p.shape)
+    print('Applying StyleGAN to generated child images')
     for i in range(args.epochs): 
         for count, (f, m, tc, p) in enumerate(zip(latent_f, latent_m, true_child_img, img_p)):
             print(i, count)
@@ -290,10 +303,10 @@ def main(args):
             psnr = PSNR(mse, flag=0)
             loss = per_loss + mse
             loss.backward()
-            if (count+1) % 16 == 0 or (count+1) == len(latent_f):
+            if (count+1) % 1 == 0 or (count+1) == len(latent_f):
                 optim.step()
                 optim.zero_grad(set_to_none=True)
-            if (i + 1) % 2 == 0:
+            if (i + 1) % 100 == 0:
                 print("iter{}: , mse_loss --{}, psnr --{}".format(i + 1, loss, psnr))
                 save_image(syn_child_img.clamp(0, 1), path + "gan_reconstr/reconstruct_{}_{}.png".format(i + 1, count))
             torch.cuda.empty_cache()
@@ -311,8 +324,9 @@ def main(args):
     # TODO: Sofie Daniëls
     data_list_seg_gen = []
     data_list_real = []
+    print('Removing center crop.')
     for i, (f, m) in enumerate(zip(latent_f, latent_m)):
-        print('syn child img', count)
+        print('syn child img', i)
         new_latent_f = model_f(f)
         new_latent_m = model_m(m)
         latent = torch.cat((new_latent_f, new_latent_m), dim=2)
@@ -338,24 +352,37 @@ def main(args):
         torch.cuda.empty_cache()
 
     if args.segment:
+        print('Undoing segmentation.')
         #plt.imshow(data_list_seg_gen[0]/255)
         #plt.show()
         if not os.path.exists(path + 'pix2pix_out/'):
             os.makedirs(path + 'pix2pix_out/')
         data_list_real_gen = test_pix2pix([data_list_seg_gen, data_list_real], args.model, path + 'pix2pix_out/')
 
-        result_path = args.data_path + args.dataset + '_result/'
-        if not os.path.exists(result_path):
-            os.makedirs(result_path)
-        # logging.info(data_list_real_gen.shape)
-        for i, im in enumerate(data_list_real_gen):
-            if args.dataset == 'FMSD':
-                if i%2 == 0:
-                    imageio.imwrite(result_path + args.dataset + "-{}-D.png".format(int((i + 2)/2)), im)
-                else:
-                    imageio.imwrite(result_path + args.dataset + "-{}-S.png".format(int((i + 1)/2)), im)
+    result_path = 'result/' + args.dataset
+    if args.segment != 0:
+        result_path = result_path + '_seg' + str(args.segment-1)
+    if args.augment:
+        result_path = result_path + '_aug-'
+        if args.mixup:
+            result_path = result_path + 'mixup/'
+        else:
+            result_path = result_path + 'augmix/'
+    else:
+        result_path = result_path + '/'
+
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
+    print(data_list_real_gen.shape)
+    print('Saving results.')
+    for i, im in enumerate(data_list_real_gen):
+        if args.dataset == 'FMSD':
+            if i%2 == 0:
+                imageio.imwrite(result_path + args.dataset + "-{}-D.png".format(int((i + 2)/2)), im)
             else:
-                imageio.imwrite(result_path + args.dataset + "-{}-".format(i + 1) + args.dataset[-1] + ".png", im)
+                imageio.imwrite(result_path + args.dataset + "-{}-S.png".format(int((i + 1)/2)), im)
+        else:
+            imageio.imwrite(result_path + args.dataset + "-{}-".format(i + 1) + args.dataset[-1] + ".png", im)
 
 
 if __name__ == "__main__":
