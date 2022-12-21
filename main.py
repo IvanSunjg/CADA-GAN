@@ -196,19 +196,25 @@ def main(args):
                 transforms.CenterCrop((1024, 1024)),
                 transforms.ToTensor(),
             ])
-        )    
-      
+        )
+
     path = 'temp/' + args.dataset
+    result_path = 'result/' + args.dataset
     if args.segment != 0:
         path = path + '_seg' + str(args.segment-1)
+        result_path = result_path + '_seg' + str(args.segment-1)
     if args.augment:
         path = path + '_aug-'
+        result_path = result_path + '_aug-'
         if args.mixup:
             path = path + 'mixup/'
+            result_path = result_path + 'mixup/'
         else:
             path = path + 'augmix/'
+            result_path = result_path + 'augmix/'
     else:
         path = path + '/'
+        result_path = result_path + '/'
 
     if not os.path.exists(path):
         print('Creating directory')
@@ -239,7 +245,7 @@ def main(args):
                 c_idx.append(idx)
             idx+=1
 
-        for f, m in zip(f_idx,m_idx):
+        for f, m in list(zip(f_idx,m_idx)):
 
             # father image
             image_f = dataset[f][0]
@@ -256,7 +262,7 @@ def main(args):
                 latent_m.append(embedding_function(image_m, args, g_synthesis).to(args.device))
             latent_f.append(embedding_function(image_f, args, g_synthesis).to(args.device))
             latent_m.append(embedding_function(image_m, args, g_synthesis).to(args.device))
-
+    
     torch.cuda.empty_cache()
 
     # Feature selection
@@ -287,9 +293,9 @@ def main(args):
         im2 = im2
         true_child_img = torch.cat((true_child_img, im))
         img_p = torch.cat((img_p, im2))
-
+    
     print('Applying StyleGAN to generated child images')
-    for i in range(args.epochs): 
+    for i in range(args.epochs):
         for count, (f, m, tc, p) in enumerate(zip(latent_f, latent_m, true_child_img, img_p)):
             print(i, count)
             optim.zero_grad()
@@ -350,7 +356,7 @@ def main(args):
         del latent
         gc.collect()
         torch.cuda.empty_cache()
-
+    
     if args.segment:
         print('Undoing segmentation.')
         #plt.imshow(data_list_seg_gen[0]/255)
@@ -358,22 +364,11 @@ def main(args):
         if not os.path.exists(path + 'pix2pix_out/'):
             os.makedirs(path + 'pix2pix_out/')
         data_list_real_gen = test_pix2pix([data_list_seg_gen, data_list_real], args.model, path + 'pix2pix_out/')
-
-    result_path = 'result/' + args.dataset
-    if args.segment != 0:
-        result_path = result_path + '_seg' + str(args.segment-1)
-    if args.augment:
-        result_path = result_path + '_aug-'
-        if args.mixup:
-            result_path = result_path + 'mixup/'
-        else:
-            result_path = result_path + 'augmix/'
     else:
-        result_path = result_path + '/'
+        data_list_real_gen = data_list_seg_gen
 
     if not os.path.exists(result_path):
         os.makedirs(result_path)
-    print(data_list_real_gen.shape)
     print('Saving results.')
     for i, im in enumerate(data_list_real_gen):
         if args.dataset == 'FMSD':
@@ -405,7 +400,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, help="Path to pretrained pix2pix GAN model")
     parser.add_argument("--load-seg", default=False, type=bool,
                         help="Whether to load previous segmentations or start anew")
-
+    
     parser.add_argument("--gan", default="image2stylegan", type=str,
                         help="gan type we used to generate images")
     parser.add_argument("--batchsize", default=32, type=int, help="batch size")
