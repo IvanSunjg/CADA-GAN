@@ -8,8 +8,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import os
-from ImageAugmentation.augmentations import augmentations as A
-from ImageAugmentation.augmentations.TSKinFace_Dataset import TSKinDataset
+from augmentations import augmentations as A
+from augmentations.TSKinFace_Dataset import TSKinDataset
 from torchvision.datasets import ImageFolder
 from torchvision import transforms
 from torchvision.utils import save_image
@@ -313,10 +313,11 @@ def main(args):
     for i, (f, m) in enumerate(zip(latent_f, latent_m)):
         print('syn child img', i)
         latent_p = torch.cat((f, m), dim=2)
-        latent = model_p(latent_p)
-        syn_child_img = g_synthesis(latent)
-        syn_child_img = torch.reshape(syn_child_img[0], (18,512))[None, :]
-        data_list_seg_gen.append(np.transpose(syn_child_img.clamp(0,1).detach().cpu().numpy(), (1, 2, 0))*255)
+        child_pred = model_p(latent_p)
+        child_pred = torch.reshape(child_pred[0], (18,512))[None, :]
+        syn_child_img = g_synthesis(child_pred)
+        syn_child_img = ((syn_child_img + 1.0) / 2.0).clamp(0, 1)
+        data_list_seg_gen.append(np.transpose(syn_child_img.detach().cpu().numpy(), (1, 2, 0))*255)
         nim = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))*255
         #plt.imshow(nim/255)
         #plt.show()
