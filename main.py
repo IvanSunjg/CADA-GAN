@@ -283,7 +283,7 @@ def main(args):
     # Feature selection
     print('Setting up feature selection.')
     model_p = FourLayerNet()
-    print(summary(model_p, torch.cat((latent_f[0], latent_m[0]), dim=2).shape))
+    #print(summary(model_p, torch.cat((latent_f[0], latent_m[0]), dim=2).shape))
     model_p = model_p.to(args.device)
     optim = torch.optim.Adam(list(model_p.parameters()),  lr=args.lr)
     
@@ -298,7 +298,7 @@ def main(args):
             child_pred = torch.reshape(child_pred[0], (18,512))[None, :]
             syn_child_img = g_synthesis(child_pred)
             syn_child_img = ((syn_child_img + 1.0) / 2.0).clamp(0, 1)
-            loss = F.mse_loss(input=syn_child_img, target=dataset[num][0], reduction='mean')
+            loss = F.mse_loss(input=syn_child_img, target=dataset[num][0][None, :], reduction='mean')
             loss.backward()  # backpropagation loss
             optim.step()
             if (epoch+1) % 2 == 0:
@@ -311,13 +311,12 @@ def main(args):
     data_list_real = []
     print('Removing center crop.')
     for i, (f, m) in enumerate(zip(latent_f, latent_m)):
-        print('syn child img', i)
         latent_p = torch.cat((f, m), dim=2)
         child_pred = model_p(latent_p)
         child_pred = torch.reshape(child_pred[0], (18,512))[None, :]
         syn_child_img = g_synthesis(child_pred)
         syn_child_img = ((syn_child_img + 1.0) / 2.0).clamp(0, 1)
-        data_list_seg_gen.append(np.transpose(syn_child_img.detach().cpu().numpy(), (1, 2, 0))*255)
+        data_list_seg_gen.append(np.transpose(syn_child_img[0].detach().cpu().numpy(), (1, 2, 0))*255)
         nim = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))*255
         #plt.imshow(nim/255)
         #plt.show()
@@ -328,13 +327,7 @@ def main(args):
         #plt.imshow(nim/255)
         #plt.show()
         data_list_real.append(nim)
-        torch.cuda.empty_cache()
-        del syn_child_img
-        del new_latent_f
-        del new_latent_m
-        del latent
-        gc.collect()
-        torch.cuda.empty_cache()
+
     
     if args.segment:
         print('Undoing segmentation.')
