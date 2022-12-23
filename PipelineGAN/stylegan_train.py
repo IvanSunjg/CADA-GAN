@@ -27,11 +27,13 @@ def load(args):
     return args, g_synthesis
 
 
-def embedding_function(image, args, g_synthesis):
+def embedding_function(image, args, g_synthesis, epochs, saveloc):
     upsample = torch.nn.Upsample(scale_factor=256 / 1024, mode='bilinear')
     img_p = image.clone()
     img_p = upsample(img_p)
     perceptual = VGG16_perceptual().to(args.device)
+    print('imgp shape', img_p.shape)
+    print('image shape', image.shape)
 
     MSE_loss = nn.MSELoss(reduction="mean")
     latents = torch.zeros((1, 18, 512), requires_grad=True, device=args.device)
@@ -39,7 +41,7 @@ def embedding_function(image, args, g_synthesis):
 
     loss_ = []
     loss_psnr = []
-    for e in range(args.epochs):
+    for e in range(epochs):
         optimizer.zero_grad()
         syn_img = g_synthesis(latents)
         syn_img = (syn_img + 1.0) / 2.0
@@ -53,10 +55,10 @@ def embedding_function(image, args, g_synthesis):
         loss_m = mse.detach().cpu().numpy()
         loss_psnr.append(psnr)
         loss_.append(loss_np)
-        if (e + 1) % 500 == 0:
-            logging.info("iter{}: loss -- {},  mse_loss --{},  percep_loss --{}, psnr --{}".format(e + 1, loss_np, loss_m,
+        if (e + 1) % 2 == 0:
+            print("iter{}: loss -- {},  mse_loss --{},  percep_loss --{}, psnr --{}".format(e + 1, loss_np, loss_m,
                                                                                             loss_p, psnr))
-            #save_image(syn_img.clamp(0, 1), "save_images/reconstruct_{}.png".format(e + 1))
+            save_image(syn_img.clamp(0, 1), saveloc + "{}.png".format(e + 1))
 
     # plt.plot(loss_, label='Loss = MSELoss + Perceptual')
     # plt.plot(loss_psnr, label='PSNR')
@@ -73,7 +75,7 @@ def style_transfer(target_latent, style_latent, src, tgt, g_synthesis):
     tmp_latent1 = target_latent[:, :10, :]
     tmp_latent2 = style_latent[:, 10:, :]
     latent = torch.cat((tmp_latent1, tmp_latent2), dim=1)
-    logging.info(latent.shape)
+    print(latent.shape)
     syn_img = g_synthesis(latent)
     #syn_img = (syn_img + 1.0) / 2.0
     #save_image(syn_img.clamp(0, 1), "Style_transfer_{}_{}_10.png".format(src, tgt))
