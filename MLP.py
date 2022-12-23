@@ -6,19 +6,25 @@ import torch.nn.functional as F
 class FourLayerNet(nn.Module):
     def __init__(self):
         super(FourLayerNet, self).__init__()
-        self.fc1 = nn.Linear(512, 256)
-        self.fc2 = nn.Linear(256, 256)
-        self.fc3 = nn.Linear(256, 256)
+        self.fc1 = nn.Linear(2*18*512, 18*512)
+        self.fc2 = nn.Linear(18*512, 18*512)
+        self.fc3 = nn.Linear(18*512, 18*512)
+        self.fc4 = nn.Linear(18*512, 18*512)
 
         self.dropout = nn.Dropout(0.25)
 
     # x represents our data
     def forward(self, x):
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.dropout(x)
-        x = self.fc2(x)
-        x = F.relu(x)
-        x = self.dropout(x)
-        x = self.fc3(x)
-        return x
+        y = torch.flatten(x, 1)
+        y = self.fc1(y)
+        y = F.relu(y)
+        y = self.dropout(y)
+        y = self.fc2(y)
+        y = F.relu(y)
+        y = self.dropout(y)
+        y = self.fc3(y)
+        y = F.relu(y)
+        y = self.dropout(y)
+        out = self.fc4(y)
+        
+        return out
