@@ -6,6 +6,7 @@ import gc
 import logging
 import numpy as np
 import torch
+import torch.nn.functional as F
 import os
 from augmentations import augmentations as A
 from augmentations.TSKinFace_Dataset import TSKinDataset
@@ -15,6 +16,7 @@ from torchvision.utils import save_image
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 from ImageSegmentation.pix2pixGAN.test import test_pix2pix
 from MLP import FourLayerNet
+from torchsummary import summary
 
 import matplotlib.pyplot as plt
 import imageio
@@ -221,110 +223,87 @@ def main(args):
         os.makedirs(path)
     if not os.path.exists(path + 'gan_reconstr/'):
         os.makedirs(path + 'gan_reconstr/')
-    
+    if not os.path.exists(path + 'gan_latent/'):
+        os.makedirs(path + 'gan_latent/')
+
     # GAN projection into latent space
     # TODO: Jiaqing Xie
     print('Converting parent images to latent space with Image2StyleGAN')
     latent_f = []
     latent_m = []
-    if args.gan == "image2stylegan":
+    latent_c = []
 
-        _, g_synthesis = load(args)
+    _, g_synthesis = load(args)
 
-        idx = 0
-        c_idx = []
-        f_idx = []
-        m_idx = []
+    idx = 0
+    c_idx = []
+    f_idx = []
+    m_idx = []
 
-        for image, label in dataset:
-            if label == 0:
-                f_idx.append(idx)
-            elif label == 1:
-                m_idx.append(idx)
-            elif label == 2:
-                c_idx.append(idx)
-            idx+=1
-
-        for f, m in list(zip(f_idx,m_idx)):
-
-            # father image
-            image_f = dataset[f][0]
-            image_f = image_f[None, :]
-            image_f = image_f.to(args.device)
-
-            # mother image
-            image_m = dataset[m][0]
-            image_m = image_m[None, :]
-            image_m = image_m.to(args.device)
-            
+    for image, label in dataset:
+        if label == 0:
+            f_idx.append(idx)
             if args.dataset == 'FMSD':
-                latent_f.append(embedding_function(image_f, args, g_synthesis).to(args.device))
-                latent_m.append(embedding_function(image_m, args, g_synthesis).to(args.device))
-            latent_f.append(embedding_function(image_f, args, g_synthesis).to(args.device))
-            latent_m.append(embedding_function(image_m, args, g_synthesis).to(args.device))
+                f_idx.append(idx)
+        elif label == 1:
+            m_idx.append(idx)
+            if args.dataset == 'FMSD':
+                m_idx.append(idx)
+        elif label == 2:
+            c_idx.append(idx)
+        idx+=1
+
+    for num, (f, m, c) in enumerate(list(zip(f_idx,m_idx, c_idx))):
+        print('Embedding parents and children triplets, number', num+1)
+        # father image
+        image_f = dataset[f][0]
+        image_f = image_f[None, :]
+        image_f = image_f.to(args.device)
+
+        # mother image
+        image_m = dataset[m][0]
+        image_m = image_m[None, :]
+        image_m = image_m.to(args.device)
+
+        image_c = dataset[c][0]
+        image_c = image_c[None, :]
+        image_c = image_c.to(args.device)
+        
+        p = path + "gan_latent/reconstruct_{}_".format(num + 1)
+        lf = embedding_function(image_f, args, g_synthesis, args.epochs_lat, p + "f_").to(args.device)
+        lm = embedding_function(image_m, args, g_synthesis, args.epochs_lat, p + "m_").to(args.device)
+        lc = embedding_function(image_c, args, g_synthesis, args.epochs_lat, p + "c_").to(args.device)
+
+        latent_f.append(lf)
+        latent_m.append(lm)
+        latent_c.append(lc)
     
     torch.cuda.empty_cache()
 
     # Feature selection
-    # TODO: Jiaqing Xie please check if it works
     print('Setting up feature selection.')
-    model_f = FourLayerNet().to(args.device)
-    model_m = FourLayerNet().to(args.device)
-    loss_f = torch.nn.MSELoss(reduction='sum')
-    optim = torch.optim.Adam(list(model_f.parameters()) + list(model_m.parameters()),  lr=args.lr)
-
-    true_child_img = dataset[c_idx[0]][0]
-    true_child_img = true_child_img[None, :]
-    true_child_img = true_child_img
-    upsample = torch.nn.Upsample(scale_factor=256 / 1024, mode='bilinear')
-    img_p = dataset[c_idx[0]][0].clone()
-    img_p = img_p[None, :]
-    img_p = upsample(img_p)
-    img_p = img_p
-    for cid in c_idx[1:]:
-        im = dataset[cid][0]
-        im2 = dataset[cid][0].clone()
-        #plt.imshow(np.transpose(true_child_img.numpy(), (1,2,0)))
-        #plt.show()
-        im = im[None, :]
-        im2 = im2[None, :]
-        im = im
-        im2 = upsample(im2)
-        im2 = im2
-        true_child_img = torch.cat((true_child_img, im))
-        img_p = torch.cat((img_p, im2))
+    model_p = FourLayerNet()
+    print(summary(model_p, torch.cat((latent_f[0], latent_m[0]), dim=2).shape))
+    model_p = model_p.to(args.device)
+    optim = torch.optim.Adam(list(model_p.parameters()),  lr=args.lr)
     
-    print('Applying StyleGAN to generated child images')
-    for i in range(args.epochs):
-        for count, (f, m, tc, p) in enumerate(zip(latent_f, latent_m, true_child_img, img_p)):
-            print(i, count)
+    print('Starting training')
+    for epoch in range(args.epochs):
+        print('Epoch', epoch + 1)
+        for num, (lf, lm, lc) in enumerate(zip(latent_f, latent_m, latent_c)):
+            model_p.train()
             optim.zero_grad()
-            new_latent_f = model_f(f)
-            new_latent_m = model_m(m)
-            latent = torch.cat((new_latent_f, new_latent_m), dim=2)
-            syn_child_img = g_synthesis(latent)
-
-            perceptual = VGG16_perceptual().to(args.device)
-            mse, per_loss = loss_function(syn_child_img, tc[None, :].to(args.device), p[None, :].to(args.device), loss_f, upsample, perceptual)
-            psnr = PSNR(mse, flag=0)
-            loss = per_loss + mse
-            loss.backward()
-            if (count+1) % 1 == 0 or (count+1) == len(latent_f):
-                optim.step()
-                optim.zero_grad(set_to_none=True)
-            if (i + 1) % 100 == 0:
-                print("iter{}: , mse_loss --{}, psnr --{}".format(i + 1, loss, psnr))
-                save_image(syn_child_img.clamp(0, 1), path + "gan_reconstr/reconstruct_{}_{}.png".format(i + 1, count))
-            torch.cuda.empty_cache()
-            del new_latent_f
-            del new_latent_m
-            del syn_child_img
-            del latent
-            gc.collect()
-            torch.cuda.empty_cache()
-
-    # GAN from latent space back to image
-    
+            latent_p = torch.cat((lf, lm), dim=2)
+            child_pred = model_p(latent_p)
+            child_pred = torch.reshape(child_pred[0], (18,512))[None, :]
+            syn_child_img = g_synthesis(child_pred)
+            syn_child_img = ((syn_child_img + 1.0) / 2.0).clamp(0, 1)
+            loss = F.mse_loss(input=g_synthesis(child_pred), target=dataset[num][0], reduction='mean')
+            loss.backward()  # backpropagation loss
+            optim.step()
+            if (epoch+1) % 2 == 0:
+                print("iter{}: , mse_loss --{}".format(epoch + 1, loss.item()))
+                save_image(syn_child_img.clamp(0, 1), path + "gan_reconstr/reconstruct_{}_{}.png".format(epoch + 1, num))    
 
     # Undo image segmentation
     # TODO: Sofie Daniëls
@@ -333,9 +312,8 @@ def main(args):
     print('Removing center crop.')
     for i, (f, m) in enumerate(zip(latent_f, latent_m)):
         print('syn child img', i)
-        new_latent_f = model_f(f)
-        new_latent_m = model_m(m)
-        latent = torch.cat((new_latent_f, new_latent_m), dim=2)
+        latent_p = torch.cat((f, m), dim=2)
+        latent = model_p(latent_p)
         syn_child_img = g_synthesis(latent)
         syn_child_img = syn_child_img[0]
         data_list_seg_gen.append(np.transpose(syn_child_img.clamp(0,1).detach().cpu().numpy(), (1, 2, 0))*255)
@@ -366,7 +344,7 @@ def main(args):
         data_list_real_gen = test_pix2pix([data_list_seg_gen, data_list_real], args.model, path + 'pix2pix_out/')
     else:
         data_list_real_gen = data_list_seg_gen
-
+        
     if not os.path.exists(result_path):
         os.makedirs(result_path)
     print('Saving results.')
@@ -411,7 +389,8 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", action='store',
                         default="karras2019stylegan-ffhq-1024x1024.pt", type=str)
     parser.add_argument("--lr", action='store', default=0.015, type=float)
-    parser.add_argument("--epochs", action='store', default=1000, type=int)
+    parser.add_argument("--epochs", action='store', default=500, type=int)
+    parser.add_argument("--epochs_lat", action='store', default=500, type=int)
     parser.add_argument("--device", default='cuda:0', help="Whether to use a GPU or not")
 
     parser.add_argument("--data_path", default='dataset/TSKinFace_Data_HR/TSKinFace_cropped/',
