@@ -32,8 +32,6 @@ def embedding_function(image, args, g_synthesis, epochs, saveloc):
     img_p = image.clone()
     img_p = upsample(img_p)
     perceptual = VGG16_perceptual().to(args.device)
-    print('imgp shape', img_p.shape)
-    print('image shape', image.shape)
 
     MSE_loss = nn.MSELoss(reduction="mean")
     latents = torch.zeros((1, 18, 512), requires_grad=True, device=args.device)
