@@ -8,14 +8,14 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import os
-from augmentations import augmentations as A
-from augmentations.TSKinFace_Dataset import TSKinDataset
+from ImageAugmentation.augmentations import augmentations as A
+from ImageAugmentation.augmentations.TSKinFace_Dataset import TSKinDataset
 from torchvision.datasets import ImageFolder
 from torchvision import transforms
 from torchvision.utils import save_image
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 from ImageSegmentation.pix2pixGAN.test import test_pix2pix
-from MLP import FourLayerNet
+from MLP2 import FourLayerNet
 from torchsummary import summary
 
 import matplotlib.pyplot as plt
@@ -298,7 +298,7 @@ def main(args):
             child_pred = torch.reshape(child_pred[0], (18,512))[None, :]
             syn_child_img = g_synthesis(child_pred)
             syn_child_img = ((syn_child_img + 1.0) / 2.0).clamp(0, 1)
-            loss = F.mse_loss(input=g_synthesis(child_pred), target=dataset[num][0], reduction='mean')
+            loss = F.mse_loss(input=syn_child_img, target=dataset[num][0], reduction='mean')
             loss.backward()  # backpropagation loss
             optim.step()
             if (epoch+1) % 2 == 0:
@@ -315,7 +315,7 @@ def main(args):
         latent_p = torch.cat((f, m), dim=2)
         latent = model_p(latent_p)
         syn_child_img = g_synthesis(latent)
-        syn_child_img = syn_child_img[0]
+        syn_child_img = torch.reshape(syn_child_img[0], (18,512))[None, :]
         data_list_seg_gen.append(np.transpose(syn_child_img.clamp(0,1).detach().cpu().numpy(), (1, 2, 0))*255)
         nim = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))*255
         #plt.imshow(nim/255)
@@ -389,8 +389,8 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", action='store',
                         default="karras2019stylegan-ffhq-1024x1024.pt", type=str)
     parser.add_argument("--lr", action='store', default=0.015, type=float)
-    parser.add_argument("--epochs", action='store', default=500, type=int)
-    parser.add_argument("--epochs_lat", action='store', default=500, type=int)
+    parser.add_argument("--epochs", action='store', default=6, type=int)
+    parser.add_argument("--epochs_lat", action='store', default=2, type=int)
     parser.add_argument("--device", default='cuda:0', help="Whether to use a GPU or not")
 
     parser.add_argument("--data_path", default='dataset/TSKinFace_Data_HR/TSKinFace_cropped/',
