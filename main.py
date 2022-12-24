@@ -15,13 +15,13 @@ from torchvision import transforms
 from torchvision.utils import save_image
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 from ImageSegmentation.pix2pixGAN.test import test_pix2pix
-from MLP2 import FourLayerNet
+from MLP import FourLayerNet
 from torchsummary import summary
 
 import matplotlib.pyplot as plt
 import imageio
 
-from PipelineGAN.stylegan_train_2 import load, embedding_function, style_transfer
+from PipelineGAN.stylegan_train import load, embedding_function, style_transfer
 from PipelineGAN.utils import PSNR, loss_function
 from PipelineGAN.VGG16 import VGG16_perceptual
 
