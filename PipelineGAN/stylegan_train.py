@@ -30,7 +30,9 @@ def load(args):
 def embedding_function(image, args, g_synthesis, epochs, saveloc):
     upsample = torch.nn.Upsample(scale_factor=256 / 1024, mode='bilinear')
     img_p = image.clone()
+    print('img_p', img_p.shape)
     img_p = upsample(img_p)
+    print('img_p upsampled', img_p.shape)
     perceptual = VGG16_perceptual().to(args.device)
 
     MSE_loss = nn.MSELoss(reduction="mean")
@@ -53,10 +55,10 @@ def embedding_function(image, args, g_synthesis, epochs, saveloc):
         loss_m = mse.detach().cpu().numpy()
         loss_psnr.append(psnr)
         loss_.append(loss_np)
-        if (e + 1) % 2 == 0:
+        if (e + 1) % 25 == 0:
             print("iter{}: loss -- {},  mse_loss --{},  percep_loss --{}, psnr --{}".format(e + 1, loss_np, loss_m,
                                                                                             loss_p, psnr))
-            save_image(syn_img.clamp(0, 1), saveloc + "{}.png".format(e + 1))
+            save_image(syn_img.clamp(0, 1), saveloc)
 
     # plt.plot(loss_, label='Loss = MSELoss + Perceptual')
     # plt.plot(loss_psnr, label='PSNR')
