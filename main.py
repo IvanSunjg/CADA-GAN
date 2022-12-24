@@ -21,7 +21,7 @@ from torchsummary import summary
 import matplotlib.pyplot as plt
 import imageio
 
-from PipelineGAN.stylegan_train import load, embedding_function, style_transfer
+from PipelineGAN.stylegan_train_2 import load, embedding_function, style_transfer
 from PipelineGAN.utils import PSNR, loss_function
 from PipelineGAN.VGG16 import VGG16_perceptual
 
@@ -36,7 +36,7 @@ def main(args):
         default_dataset = ImageFolder(
             root = args.data_path + args.dataset+'/',
             transform = transforms.Compose([
-                transforms.CenterCrop((1024, 1024)),
+                transforms.Resize((1024, 1024)),
                 transforms.ToTensor(),
             ])
         )
@@ -45,7 +45,7 @@ def main(args):
                 root = args.data_path + args.dataset+'/',
                 transform = [
                     transforms.ToTensor(),
-                    transforms.CenterCrop((1024, 1024)),
+                    transforms.Resize((1024, 1024)),
                     A.P(A.MixUp_FMD(dataset=default_dataset), p=args.P)
                 ]
             )
@@ -54,7 +54,7 @@ def main(args):
                 root = args.data_path + args.dataset+'/',
                 transform = [
                     transforms.ToTensor(),
-                    transforms.CenterCrop((1024, 1024)),
+                    transforms.Resize((1024, 1024)),
                     A.P(A.MixUp_FMS(dataset=default_dataset), p=args.P)
                 ]
             )
@@ -63,7 +63,7 @@ def main(args):
                 root = args.data_path + args.dataset+'/',
                 transform = [
                     transforms.ToTensor(),
-                    transforms.CenterCrop((1024, 1024)),
+                    transforms.Resize((1024, 1024)),
                     A.P(A.MixUp_FMSD(dataset=default_dataset), p=args.P)
                 ]
             )
@@ -75,7 +75,7 @@ def main(args):
             root = args.data_path + args.dataset+'/',
             transform = [
                 transforms.ToTensor(),
-                transforms.CenterCrop((1024, 1024)),
+                transforms.Resize((1024, 1024)),
                 A.P(A.AugMix(), p=args.P)
             ]
         )
@@ -89,7 +89,7 @@ def main(args):
         dataset = ImageFolder(
             root = args.data_path + args.dataset+'/',
             transform = transforms.Compose([
-                transforms.CenterCrop((1024, 1024)),
+                transforms.Resize((1024, 1024)),
                 transforms.ToTensor(),
             ])
         )
@@ -195,7 +195,7 @@ def main(args):
         dataset = ImageFolder(
             root = seg_path,
             transform = transforms.Compose([
-                transforms.CenterCrop((1024, 1024)),
+                transforms.Resize((1024, 1024)),
                 transforms.ToTensor(),
             ])
         )
@@ -277,6 +277,11 @@ def main(args):
         latent_f.append(lf)
         latent_m.append(lm)
         latent_c.append(lc)
+
+        del image_c
+        del image_m
+        del image_f
+        gc.collect()
     
     torch.cuda.empty_cache()
 
@@ -285,7 +290,7 @@ def main(args):
     model_p = FourLayerNet()
     #print(summary(model_p, torch.cat((latent_f[0], latent_m[0]), dim=2).shape))
     model_p = model_p.to(args.device)
-    optim = torch.optim.Adam(list(model_p.parameters()),  lr=args.lr)
+    optim = torch.optim.Adam(list(model_p.parameters()),  lr=0.01)
     
     print('Starting training')
     for epoch in range(args.epochs):
@@ -298,12 +303,13 @@ def main(args):
             child_pred = torch.reshape(child_pred[0], (18,512))[None, :]
             syn_child_img = g_synthesis(child_pred)
             syn_child_img = ((syn_child_img + 1.0) / 2.0).clamp(0, 1)
-            loss = F.mse_loss(input=syn_child_img, target=dataset[num][0][None, :], reduction='mean')
+            loss = F.mse_loss(input=syn_child_img.to('cpu'), target=dataset[num][0][None, :], reduction='mean')
             loss.backward()  # backpropagation loss
             optim.step()
-            if (epoch+1) % 2 == 0:
+            if (epoch+1) % 25 == 0:
                 print("iter{}: , mse_loss --{}".format(epoch + 1, loss.item()))
                 save_image(syn_child_img.clamp(0, 1), path + "gan_reconstr/reconstruct_{}_{}.png".format(epoch + 1, num))    
+    torch.cuda.empty_cache()
 
     # Undo image segmentation
     # TODO: Sofie Daniëls
@@ -327,6 +333,8 @@ def main(args):
         #plt.imshow(nim/255)
         #plt.show()
         data_list_real.append(nim)
+        del syn_child_img
+        gc.collect()
 
     
     if args.segment:
