@@ -344,7 +344,6 @@ def main(args):
     # Test trained feature extractor and obtain predicted latent vectors of children 
     lat_saves = []
     for i, (lf, lm) in enumerate(list(zip(latent_f, latent_m))):
-        model_p.eval()
         lf_n = np.load(lf)
         lf_n = lf_n['w']
         lf_n = torch.tensor(lf_n)
