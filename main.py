@@ -8,13 +8,13 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import os
-from ImageAugmentation.augmentations import augmentations as A
-from ImageAugmentation.augmentations.TSKinFace_Dataset import TSKinDataset
+from augmentations import augmentations as A
+from augmentations.TSKinFace_Dataset import TSKinDataset
 from torchvision.datasets import ImageFolder
 from torchvision import transforms
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 from ImageSegmentation.pix2pixGAN.test import test_pix2pix
-from MLP import FourLayerNet
+from MLP5 import FourLayerNet
 from torchsummary import summary
 
 import matplotlib.pyplot as plt
@@ -137,7 +137,7 @@ def main(args):
             if not os.path.exists(child_path):
                 os.makedirs(child_path)
             
-            '''
+            
             #TODO CODE TO DELETE TRIPLETS WHEN FACE PARSING FAILS
             f = 0
             m = 0
@@ -196,7 +196,7 @@ def main(args):
                         delete_list.append(i)
                         delete_list.append(i - l)
                         delete_list.append(i - 2*l)
-            '''
+            
         logging.info("Image Segmentation Dataset is loaded.")
 
         # Save original dataset in 'dataset_orig', and new one in 'dataset'.
