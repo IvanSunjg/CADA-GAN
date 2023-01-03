@@ -14,7 +14,7 @@ from torchvision.datasets import ImageFolder
 from torchvision import transforms
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 from ImageSegmentation.pix2pixGAN.test import test_pix2pix
-from MLP5 import FourLayerNet
+from MLP import FourLayerNet
 from torchsummary import summary
 
 import matplotlib.pyplot as plt
