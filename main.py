@@ -7,6 +7,7 @@ import logging
 import numpy as np
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 import os
 from augmentations import augmentations as A
 from augmentations.TSKinFace_Dataset import TSKinDataset
@@ -14,7 +15,7 @@ from torchvision.datasets import ImageFolder
 from torchvision import transforms
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 from ImageSegmentation.pix2pixGAN.test import test_pix2pix
-from MLP5 import FourLayerNet
+#from MLP5 import FourLayerNet
 from torchsummary import summary
 
 import matplotlib.pyplot as plt
@@ -24,6 +25,16 @@ from projector import run_projection
 from generate import generate_images
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
+class WeightLatent(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.gamma = nn.Parameter(torch.tensor([0.5]).to(args.device))
+
+    def forward(self, lf, lm):
+        # lf, lm must be in the same device with gamma
+        lat = lf * self.gamma + lm * (1 - self.gamma)
+        return lat
 
 def main(args):
     logging.info("Setting up logger")
@@ -290,17 +301,17 @@ def main(args):
     
     # Feature selection with 4-layer network
     logging.info('Setting up feature selection.')
-    model_p = FourLayerNet()
-    #logging.info(str(summary(model_p, torch.cat((latent_f[0], latent_m[0]), dim=2).shape)))
-    model_p = model_p.to(args.device)
-    optim = torch.optim.Adam(list(model_p.parameters()), lr=0.01)
+#     model_p = FourLayerNet()
+#     #logging.info(str(summary(model_p, torch.cat((latent_f[0], latent_m[0]), dim=2).shape)))
+#     model_p = model_p.to(args.device)
+#     optim = torch.optim.Adam(list(model_p.parameters()), lr=0.01)
     
     # Index where to split for train/test
     train_test_split = int(round(args.ratio*len(f_idx)))
     logging.info('Traintestsplit ' + str(train_test_split))
 
-    # Train a trainable weight a only on training set
-    a = torch.tensor(0.5, requires_grad=True).to(args.device) 
+    WLModel = WeightLatent()
+    optim = torch.optim.Adam(list(WLModel.parameters()), lr=0.01)
     
 
     logging.info('Starting training')
@@ -323,7 +334,7 @@ def main(args):
             logging.info('latent f shape ' + str(lf_n.shape))
             # Concatenate both parent latent vectors
             #latent_p = torch.cat((lf_n, lm_n), dim=2).to(args.device)
-            child_pred = a * lf_n + (1 - a) * lm_n
+            child_pred = WLModel(lf_n, lm_n)
             #logging.info('latent p shape ' + str(latent_p.shape))
             # Predict child latent vector
             #child_pred = model_p(latent_p)
@@ -346,17 +357,21 @@ def main(args):
     logging.info('Removing center crop.')
 
     # Test trained trainable weight a and obtain predicted latent vectors of children 
-    cpu_a = a.to("cpu")
+    print("trained weight: {}".format(WLModel.gamma))
     lat_saves = []
     for i, (lf, lm) in enumerate(list(zip(latent_f, latent_m))):
+        WLModel.eval()
         lf_n = np.load(lf)
         lf_n = lf_n['w']
-        lf_n = torch.tensor(lf_n)
+        lf_n = torch.tensor(lf_n).to(args.device)
         lm_n = np.load(lm)
         lm_n = lm_n['w']
-        lm_n = torch.tensor(lm_n) 
-    
-        child_pred = cpu_a * lf_n + (1 - cpu_a) * lm_n
+        lm_n = torch.tensor(lm_n).to(args.device)
+        lc_n = np.load(lc)
+        lc_n = lc_n['w']
+        lc_n = torch.tensor(lc_n).to(args.device)
+        
+        child_pred = WLModel(lf_n, lm_n)
         # latent_p = torch.cat((lf_n, lm_n), dim=2).to(args.device)
         # child_pred = model_p(latent_p)
         child_pred = torch.reshape(child_pred[0], (16,512))[None, :]
