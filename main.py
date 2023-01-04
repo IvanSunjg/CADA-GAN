@@ -299,7 +299,10 @@ def main(args):
     train_test_split = int(round(args.ratio*len(f_idx)))
     logging.info('Traintestsplit ' + str(train_test_split))
 
-    # Train 4-layer network only on training set
+    # Train a trainable weight a only on training set
+    a = torch.tensor(0.5, requires_grad=True).to(args.device) 
+    
+
     logging.info('Starting training')
     for epoch in range(args.epochs):
         logging.info('Epoch ' + str(epoch + 1))
@@ -319,10 +322,11 @@ def main(args):
             lc_n = torch.tensor(lc_n).to(args.device)
             logging.info('latent f shape ' + str(lf_n.shape))
             # Concatenate both parent latent vectors
-            latent_p = torch.cat((lf_n, lm_n), dim=2).to(args.device)
-            logging.info('latent p shape ' + str(latent_p.shape))
+            #latent_p = torch.cat((lf_n, lm_n), dim=2).to(args.device)
+            child_pred = a * lf_n + (1 - a) * lm_n
+            #logging.info('latent p shape ' + str(latent_p.shape))
             # Predict child latent vector
-            child_pred = model_p(latent_p)
+            #child_pred = model_p(latent_p)
             logging.info('child pred shape ' + str(child_pred.shape))
             child_pred = child_pred.to(args.device)
             logging.info('child pred shape ' + str(child_pred.shape))
@@ -341,7 +345,8 @@ def main(args):
     data_list_real = []
     logging.info('Removing center crop.')
 
-    # Test trained feature extractor and obtain predicted latent vectors of children 
+    # Test trained trainable weight a and obtain predicted latent vectors of children 
+    cpu_a = a.to("cpu")
     lat_saves = []
     for i, (lf, lm) in enumerate(list(zip(latent_f, latent_m))):
         lf_n = np.load(lf)
@@ -350,8 +355,10 @@ def main(args):
         lm_n = np.load(lm)
         lm_n = lm_n['w']
         lm_n = torch.tensor(lm_n) 
-        latent_p = torch.cat((lf_n, lm_n), dim=2).to(args.device)
-        child_pred = model_p(latent_p)
+    
+        child_pred = cpu_a * lf_n + (1 - cpu_a) * lm_n
+        # latent_p = torch.cat((lf_n, lm_n), dim=2).to(args.device)
+        # child_pred = model_p(latent_p)
         child_pred = torch.reshape(child_pred[0], (16,512))[None, :]
         logging.info('child pred final shape ' + str(child_pred.shape))
         np.savez(f'{path + "gan_latent"}/projected_w_' + "{}.npz".format(i), w=child_pred.detach().cpu().numpy())
