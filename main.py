@@ -350,7 +350,7 @@ def main(args):
     # Test trained trainable weight a and obtain predicted latent vectors of children 
     print("trained weight: {}".format(WLModel.gamma))
     lat_saves = []
-    for i, (lf, lm) in enumerate(list(zip(latent_f, latent_m))):
+    for i, (lf, lm) in enumerate(list(zip(latent_f[train_test_split:], latent_m[train_test_split:]))):
         WLModel.eval()
         lf_n = np.load(lf)
         lf_n = lf_n['w']
@@ -361,7 +361,7 @@ def main(args):
         lc_n = np.load(lc)
         lc_n = lc_n['w']
         lc_n = torch.tensor(lc_n).to(args.device)
-        
+
         child_pred = WLModel(lf_n, lm_n)
         child_pred = torch.reshape(child_pred[0], (16,512))[None, :]
         logging.info('child pred final shape ' + str(child_pred.shape))
@@ -371,7 +371,7 @@ def main(args):
     data_list_seg_gen = generate_images(network_pkl=args.model_name, outdir=path + "gan_reconstr", projected_w=lat_saves)
     logging.info('datalistseggen len ' + str(len(data_list_seg_gen)))
     logging.info('datalistseggen entry shape ' + str(data_list_seg_gen[0].shape))
-    for i in range(0, len(latent_f)):
+    for i in range(train_test_split, len(latent_f)):
         or_im = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))
         #plt.imshow(or_im)
         #plt.show()
@@ -396,13 +396,14 @@ def main(args):
         os.makedirs(result_path)
     logging.info('Saving results.')
     for i, im in enumerate(data_list_real_gen):
+        j = train_test_split + i
         if args.dataset == 'FMSD':
-            if i%2 == 0:
-                imageio.imwrite(result_path + args.dataset + "-{}-D.png".format(int((i + 2)/2)), im)
+            if j%2 == 0:
+                imageio.imwrite(result_path + args.dataset + "-{}-D.png".format(int((j + 2)/2)), im)
             else:
-                imageio.imwrite(result_path + args.dataset + "-{}-S.png".format(int((i + 1)/2)), im)
+                imageio.imwrite(result_path + args.dataset + "-{}-S.png".format(int((j + 1)/2)), im)
         else:
-            imageio.imwrite(result_path + args.dataset + "-{}-".format(i + 1) + args.dataset[-1] + ".png", im)
+            imageio.imwrite(result_path + args.dataset + "-{}-".format(j + 1) + args.dataset[-1] + ".png", im)
 
 
 if __name__ == "__main__":
