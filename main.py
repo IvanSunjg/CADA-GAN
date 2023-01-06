@@ -315,7 +315,7 @@ def main(args):
         logging.info('Ziplatent length ' + str(len(list(zip(latent_f, latent_m, latent_c)))))
         for num, (lf, lm, lc) in enumerate(list(zip(latent_f, latent_m, latent_c))[0:train_test_split]):
             logging.info('epoch ' + str(epoch) + ' num ' + str(num))
-            model_p.train()
+            WLModel.train()
             optim.zero_grad()
             lf_n = np.load(lf)
             lf_n = lf_n['w']
