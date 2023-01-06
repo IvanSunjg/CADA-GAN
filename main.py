@@ -15,7 +15,6 @@ from torchvision.datasets import ImageFolder
 from torchvision import transforms
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 from ImageSegmentation.pix2pixGAN.test import test_pix2pix
-#from MLP5 import FourLayerNet
 from torchsummary import summary
 
 import matplotlib.pyplot as plt
@@ -297,14 +296,10 @@ def main(args):
     latent_f, latent_m, latent_c = run_projection(network_pkl=args.model_name,
                                                   t_father=im_f, t_mother=im_m, t_child=im_c,
                                                   outdir=path + "gan_latent", seed=303,
-                                                  num_steps=700, save_video=False)
+                                                  num_steps=850, save_video=False)
     
     # Feature selection with 4-layer network
     logging.info('Setting up feature selection.')
-#     model_p = FourLayerNet()
-#     #logging.info(str(summary(model_p, torch.cat((latent_f[0], latent_m[0]), dim=2).shape)))
-#     model_p = model_p.to(args.device)
-#     optim = torch.optim.Adam(list(model_p.parameters()), lr=0.01)
     
     # Index where to split for train/test
     train_test_split = int(round(args.ratio*len(f_idx)))
@@ -332,15 +327,11 @@ def main(args):
             lc_n = lc_n['w']
             lc_n = torch.tensor(lc_n).to(args.device)
             logging.info('latent f shape ' + str(lf_n.shape))
-            # Concatenate both parent latent vectors
-            #latent_p = torch.cat((lf_n, lm_n), dim=2).to(args.device)
-            child_pred = WLModel(lf_n, lm_n)
-            #logging.info('latent p shape ' + str(latent_p.shape))
             # Predict child latent vector
-            #child_pred = model_p(latent_p)
-            logging.info('child pred shape ' + str(child_pred.shape))
+            child_pred = WLModel(lf_n, lm_n)
+            #logging.info('child pred shape ' + str(child_pred.shape))
             child_pred = child_pred.to(args.device)
-            logging.info('child pred shape ' + str(child_pred.shape))
+            #logging.info('child pred shape ' + str(child_pred.shape))
             # Update loss depending on similarity of predicted child latent vector with real child latent vector
             loss = F.mse_loss(input=child_pred, target=lc_n, reduction='mean')
             loss.backward()
@@ -372,8 +363,6 @@ def main(args):
         lc_n = torch.tensor(lc_n).to(args.device)
         
         child_pred = WLModel(lf_n, lm_n)
-        # latent_p = torch.cat((lf_n, lm_n), dim=2).to(args.device)
-        # child_pred = model_p(latent_p)
         child_pred = torch.reshape(child_pred[0], (16,512))[None, :]
         logging.info('child pred final shape ' + str(child_pred.shape))
         np.savez(f'{path + "gan_latent"}/projected_w_' + "{}.npz".format(i), w=child_pred.detach().cpu().numpy())
@@ -383,8 +372,8 @@ def main(args):
     logging.info('datalistseggen len ' + str(len(data_list_seg_gen)))
     logging.info('datalistseggen entry shape ' + str(data_list_seg_gen[0].shape))
     for i in range(0, len(latent_f)):
-        or_im = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))*255
-        #plt.imshow(or_im/255)
+        or_im = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))
+        #plt.imshow(or_im)
         #plt.show()
         data_list_real.append(or_im)
     
@@ -394,7 +383,7 @@ def main(args):
     # Undo image segmentation with pretrained pix2pix GAN
     if args.segment:
         logging.info('Undoing segmentation.')
-        #plt.imshow(data_list_seg_gen[0]/255)
+        #plt.imshow(data_list_seg_gen[0])
         #plt.show()
         if not os.path.exists(path + 'pix2pix_out/'):
             os.makedirs(path + 'pix2pix_out/')
@@ -473,7 +462,7 @@ if __name__ == "__main__":
     if args.segment > 0 and args.model is None:
         raise ValueError("Please specify the model path for the pix2pix GAN")
 
-    logging.basicConfig(filename='log3.txt',
+    logging.basicConfig(filename='log.txt',
                         filemode='a',
                         format='%(asctime)s %(name)s %(levelname)s %(message)s',
                         datefmt='%H:%M:%S',
