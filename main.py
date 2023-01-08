@@ -291,7 +291,7 @@ def main(args):
     latent_m = []
     latent_c = []
 
-
+    # TODO PRETRAIN MODEL PARTIALLY
     # Convert images to latent vectors with StyleGAN2
     latent_f, latent_m, latent_c = run_projection(network_pkl=args.model_name,
                                                   t_father=im_f, t_mother=im_m, t_child=im_c,
@@ -333,6 +333,7 @@ def main(args):
             child_pred = child_pred.to(args.device)
             #logging.info('child pred shape ' + str(child_pred.shape))
             # Update loss depending on similarity of predicted child latent vector with real child latent vector
+            # TODO UPDATE LOSS TO IMAGE INSTEAD OF LAT VECTOR
             loss = F.mse_loss(input=child_pred, target=lc_n, reduction='mean')
             loss.backward()
             optim.step()
@@ -347,6 +348,7 @@ def main(args):
     data_list_real = []
     logging.info('Removing center crop.')
 
+    # TODO SPECIFY GENDER IN ADVANCE FOR FMSD
     # Test trained trainable weight a and obtain predicted latent vectors of children 
     print("trained weight: {}".format(WLModel.gamma))
     lat_saves = []
@@ -390,7 +392,8 @@ def main(args):
         data_list_real_gen = test_pix2pix([data_list_seg_gen, data_list_real], args.model, path + 'pix2pix_out/')
     else:
         data_list_real_gen = data_list_seg_gen
-        
+    
+    # TODO PLOT EVALUATION (COSINE SIMILARITY)
     # Save final images
     if not os.path.exists(result_path):
         os.makedirs(result_path)
