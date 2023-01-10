@@ -16,6 +16,8 @@ from torchvision import transforms
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 from ImageSegmentation.pix2pixGAN.test import test_pix2pix
 from torchsummary import summary
+from scipy.spatial import distance
+from skimage.transform import resize
 
 import matplotlib.pyplot as plt
 import imageio
@@ -293,16 +295,16 @@ def main(args):
 
     # TODO PRETRAIN MODEL PARTIALLY
     # Convert images to latent vectors with StyleGAN2
-    latent_f, latent_m, latent_c = run_projection(network_pkl=args.model_name,
+    latent_f, latent_m, latent_c = run_projection(network_pkl=args.stylegan_model,
                                                   t_father=im_f, t_mother=im_m, t_child=im_c,
                                                   outdir=path + "gan_latent", seed=303,
-                                                  num_steps=850, save_video=False)
+                                                  num_steps=args.epochs_lat, save_video=False)
     
     # Feature selection with 4-layer network
     logging.info('Setting up feature selection.')
     
     # Index where to split for train/test
-    train_test_split = int(round(args.ratio*len(f_idx)))
+    train_test_split = int(round(args.ratio*len(f_idx)))-1
     logging.info('Traintestsplit ' + str(train_test_split))
 
     WLModel = WeightLatent()
@@ -312,9 +314,8 @@ def main(args):
     logging.info('Starting training')
     for epoch in range(args.epochs):
         logging.info('Epoch ' + str(epoch + 1))
-        logging.info('Ziplatent length ' + str(len(list(zip(latent_f, latent_m, latent_c)))))
+        #logging.info('Ziplatent length ' + str(len(list(zip(latent_f, latent_m, latent_c)))))
         for num, (lf, lm, lc) in enumerate(list(zip(latent_f, latent_m, latent_c))[0:train_test_split]):
-            logging.info('epoch ' + str(epoch) + ' num ' + str(num))
             WLModel.train()
             optim.zero_grad()
             lf_n = np.load(lf)
@@ -326,7 +327,7 @@ def main(args):
             lc_n = np.load(lc)
             lc_n = lc_n['w']
             lc_n = torch.tensor(lc_n).to(args.device)
-            logging.info('latent f shape ' + str(lf_n.shape))
+            #logging.info('latent f shape ' + str(lf_n.shape))
             # Predict child latent vector
             child_pred = WLModel(lf_n, lm_n)
             #logging.info('child pred shape ' + str(child_pred.shape))
@@ -334,25 +335,24 @@ def main(args):
             #logging.info('child pred shape ' + str(child_pred.shape))
             # Update loss depending on similarity of predicted child latent vector with real child latent vector
             # TODO UPDATE LOSS TO IMAGE INSTEAD OF LAT VECTOR
+            np.savez(f'{path + "gan_latent"}/projected_w_temp_' + "{}_{}.npz".format(epoch, num), w=child_pred.detach().cpu().numpy())
+            [child_pred_im, child_or_im] = generate_images(network_pkl=args.stylegan_model, outdir=path + "gan_latent", projected_w=[f'{path + "gan_latent"}/projected_w_temp_' + "{}_{}.npz".format(epoch, num), lc])
+            loss_im = F.mse_loss(input=torch.from_numpy(child_pred_im)[None, :].to(torch.float).to(args.device), target=torch.from_numpy(child_or_im)[None, :].to(torch.float).to(args.device), reduction='mean')
             loss = F.mse_loss(input=child_pred, target=lc_n, reduction='mean')
             loss.backward()
             optim.step()
-            torch.cuda.empty_cache()
-            if (epoch+1) % 5 == 0:
-                logging.info("iter{}: , mse_loss --{}".format(epoch + 1, loss.item()))
-                if (epoch+1) % 100 == 0 and num < 2:
-                    np.savez(f'{path + "gan_latent"}/projected_w_temp_' + "{}_{}.npz".format(epoch, num), w=child_pred.detach().cpu().numpy())
-                    generate_images(network_pkl=args.model_name, outdir=path + "gan_latent", projected_w=[f'{path + "gan_latent"}/projected_w_temp_' + "{}_{}.npz".format(epoch, num)])
-
+            logging.info("iter{}: , mse_loss --{}, mse_loss_im --{}".format(epoch + 1, loss.item(), loss_im))
+            
     data_list_seg_gen = []
     data_list_real = []
-    logging.info('Removing center crop.')
+    logging.info('Starting evaluation.')
 
     # TODO SPECIFY GENDER IN ADVANCE FOR FMSD
     # Test trained trainable weight a and obtain predicted latent vectors of children 
     print("trained weight: {}".format(WLModel.gamma))
     lat_saves = []
     for i, (lf, lm) in enumerate(list(zip(latent_f[train_test_split:], latent_m[train_test_split:]))):
+        j = i + train_test_split
         WLModel.eval()
         lf_n = np.load(lf)
         lf_n = lf_n['w']
@@ -366,21 +366,22 @@ def main(args):
 
         child_pred = WLModel(lf_n, lm_n)
         child_pred = torch.reshape(child_pred[0], (16,512))[None, :]
-        logging.info('child pred final shape ' + str(child_pred.shape))
-        np.savez(f'{path + "gan_latent"}/projected_w_' + "{}.npz".format(i), w=child_pred.detach().cpu().numpy())
-        lat_saves.append(f'{path + "gan_latent"}/projected_w_' + "{}.npz".format(i))
+        #logging.info('child pred final shape ' + str(child_pred.shape))
+        np.savez(f'{path + "gan_latent"}/projected_w_' + "{}.npz".format(j), w=child_pred.detach().cpu().numpy())
+        lat_saves.append(f'{path + "gan_latent"}/projected_w_' + "{}.npz".format(j))
 
-    data_list_seg_gen = generate_images(network_pkl=args.model_name, outdir=path + "gan_reconstr", projected_w=lat_saves)
-    logging.info('datalistseggen len ' + str(len(data_list_seg_gen)))
-    logging.info('datalistseggen entry shape ' + str(data_list_seg_gen[0].shape))
+    data_list_seg_gen = generate_images(network_pkl=args.stylegan_model, outdir=path + "gan_reconstr", projected_w=lat_saves)
+    #logging.info('datalistseggen len ' + str(len(data_list_seg_gen)))
+    #logging.info('datalistseggen entry shape ' + str(data_list_seg_gen[0].shape))
     for i in range(train_test_split, len(latent_f)):
+        print(train_test_split, len(latent_f))
         or_im = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))
         #plt.imshow(or_im)
         #plt.show()
         data_list_real.append(or_im)
     
-    logging.info('datalistreal len ' + str(len(data_list_real)))
-    logging.info('datalistreal entry shape ' + str(data_list_real[0].shape))
+    #logging.info('datalistreal len ' + str(len(data_list_real)))
+    #logging.info('datalistreal entry shape ' + str(data_list_real[0].shape))
 
     # Undo image segmentation with pretrained pix2pix GAN
     if args.segment:
@@ -398,21 +399,58 @@ def main(args):
     if not os.path.exists(result_path):
         os.makedirs(result_path)
     logging.info('Saving results.')
+    t_csm = 0
     for i, im in enumerate(data_list_real_gen):
         j = train_test_split + i
+        r_path = result_path + args.dataset
         if args.dataset == 'FMSD':
             if j%2 == 0:
-                imageio.imwrite(result_path + args.dataset + "-{}-D.png".format(int((j + 2)/2)), im)
+                r_path = r_path + "-{}-D".format(int((j + 2)/2))
+                imageio.imwrite(r_path + ".png", im.astype(np.uint8))
             else:
-                imageio.imwrite(result_path + args.dataset + "-{}-S.png".format(int((j + 1)/2)), im)
+                r_path = r_path + "-{}-S".format(int((j + 1)/2))
+                imageio.imwrite(r_path + ".png", im.astype(np.uint8))
         else:
-            imageio.imwrite(result_path + args.dataset + "-{}-".format(j + 1) + args.dataset[-1] + ".png", im)
+            r_path = r_path + "-{}-".format(j + 1) + args.dataset[-1]
+            imageio.imwrite(r_path + ".png", im.astype(np.uint8))
+        im_or = resize(data_list_real[i], im.shape, anti_aliasing=True)
+        csm = distance.cosine(im.flatten(), im_or.flatten())
+        logging.info("Cosine Similarity for image " + str(j) + " --" + str(csm))
+        t_csm += csm
+
+        # plot father image
+        plt.subplot(3, 3, 1)
+        plt.axis('off')
+        plt.imshow(np.transpose(im_f[j].numpy(), (1, 2, 0)))
+        # plot mother image
+        plt.subplot(3, 3, 3)
+        plt.axis('off')
+        plt.imshow(np.transpose(im_m[j].numpy(), (1, 2, 0)))
+        # plot predicted child image
+        plt.subplot(3, 3, 5)
+        plt.axis('off')
+        plt.imshow(im)
+        # plot real child face
+        plt.subplot(3, 3, 8)
+        plt.axis('off')
+        plt.imshow(im_or)
+        # save plot to file
+        filename = r_path + "_plot.png"
+        plt.subplots_adjust(left=0.1,
+                            bottom=0.1,
+                            right=0.9,
+                            top=0.9,
+                            wspace=0.0,
+                            hspace=0.0)
+        plt.savefig(filename, dpi=500)
+        plt.close()
+
+    logging.info("Cosine Similarity Total Average --" + str(t_csm/(len(latent_f)-train_test_split)))
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    # Include the arguments you want to experiment here
     parser.add_argument("--augment", type=bool, default=False,
                         help="argument to decide if you are going to use Image Augmentation")
     parser.add_argument("--mixup", type=bool, default=False,
@@ -421,26 +459,24 @@ if __name__ == "__main__":
                         help="argument to decide if you are going to use AugMix")
     parser.add_argument("--P", "-p", default=1.0, type=float,
                         help="argument to decide the propability of using the Augmentation")
-
     parser.add_argument("--segment", default=0, type=int, choices=[0, 1, 2, 3],
-                        help="Segmentation type: 0 is no segmentation, 1 is color segmentation, 2 is mix, 3 is blurred segmentation")
-    parser.add_argument("--model", type=str, help="Path to pretrained pix2pix GAN model")
+                        help="segmentation type: 0 is no segmentation, 1 is color segmentation, 2 is mix, 3 is blurred segmentation")
+    parser.add_argument("--model", type=str, help="path to pretrained pix2pix GAN model")
     parser.add_argument("--load-seg", default=False, type=bool,
-                        help="Whether to load previous segmentations or start anew")
-
-    parser.add_argument("--ratio", default=0.8, type=float)
-
-    parser.add_argument("--model_name", action='store',
-                        default="pretrained/ffhq-512-avg-tpurun1.pkl", type=str)
-    parser.add_argument("--lr", action='store', default=0.015, type=float)
-    parser.add_argument("--epochs", action='store', default=1000, type=int)
-    parser.add_argument("--epochs_lat", action='store', default=2, type=int)
-    parser.add_argument("--device", default='cuda:0', help="Whether to use a GPU or not")
-
-    parser.add_argument("--data_path", default='dataset/TSKinFace_Data_HR/TSKinFace_cropped/',
-                        type=str, help="dataset path")
-
-    # Argument to decide which dataset to use
+                        help="whether to load previous segmentations or start anew")
+    parser.add_argument("--ratio", default=0.8, type=float, help="train to test ratio")
+    parser.add_argument("--stylegan-model", action='store',
+                        default="pretrained/ffhq-512-avg-tpurun1.pkl", type=str,
+                        help="location of pretrained StyleGAN2 model")
+    parser.add_argument("--lr", action='store', default=0.015, type=float,
+                        help="learning rate for parent latent vector mixing")
+    parser.add_argument("--epochs", action='store', default=100, type=int,
+                        help="number of epochs to train parent latent vectors mixing")
+    parser.add_argument("--epochs-lat", action='store', default=850, type=int,
+                        help="number of epochs to run latent vector generator")
+    parser.add_argument("--device", default='cuda:0', help="cuda device (gpu only)")
+    parser.add_argument("--data-path", default='dataset/TSKinFace_Data_HR/TSKinFace_cropped/',
+                        type=str, help="path to dataset")
     parser.add_argument("--dataset","-d",default="FMD", type=str,
                         help="argument to decide which dataset to use. Default setting is FMD")
 
@@ -448,7 +484,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Include some very basic sanity check here to make sure the codes does not crash inside main()
-    ## TODO: Jiaqing Xie
     if args.P > 1.0 or args.P < 0.0:
         raise ValueError("The Probability for argument -p has to be between 0.0 and 1.0!")
     
@@ -464,7 +499,10 @@ if __name__ == "__main__":
         raise ValueError("Invalid argument setting for dataset. Only FMD, FMS or FMSD accepted!")
 
     if args.segment > 0 and args.model is None:
-        raise ValueError("Please specify the model path for the pix2pix GAN")
+        raise ValueError("Please specify the model path for the pix2pix GAN.")
+    
+    if args.ratio <= 0.0 or args.ratio >= 1.0:
+        raise ValueError("Please account for both training and testing and specify the ratio accordingly.")
 
     logging.basicConfig(filename='log.txt',
                         filemode='a',
