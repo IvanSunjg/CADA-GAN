@@ -6,7 +6,7 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
-# Adapted by Sofie Daniëls for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
+# Adapted by Sofie DaniÃ«ls for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
 
 """Generate images using pretrained network pickle."""
 
@@ -20,6 +20,7 @@ import PIL.Image
 import torch
 
 import legacy
+import logging
 
 #----------------------------------------------------------------------------
 
@@ -52,18 +53,18 @@ def generate_images(
     results = []
     # If we have a list of .npz file locations, continue
     if projected_w is not None:
-        print('len projected w in generate', len(projected_w))
-        print('Generating images from projected W')
+        #logging.info('len projected w in generate ' + str(len(projected_w)))
+        logging.info('Generating images from projected W')
         # Loop through all locations and load latent vectors
-        print(projected_w)
+        logging.info(str(projected_w))
         for proj_w in projected_w:
-            print(proj_w)
+            #logging.info(str(proj_w))
             ws = np.load(proj_w)
             ws = ws['w']
-            print('ws w shape', ws.shape)
+            #logging.info('ws w shape ' + str(ws.shape))
             ws = torch.tensor(ws, device=device) # pylint: disable=not-callable
-            print('ws shape[1:]', ws.shape[1:])
-            print('G num ws, w dim', G.num_ws, G.w_dim)
+            #logging.info('ws shape[1:] ' + str(ws.shape[1:]))
+            #logging.info('G num ws, w dim ' + str(G.num_ws) + " " + str(G.w_dim))
             assert ws.shape[1:] == (G.num_ws, G.w_dim)
             for idx, w in enumerate(ws):
                 img = G.synthesis(w.unsqueeze(0), noise_mode='const')
@@ -73,8 +74,7 @@ def generate_images(
                 PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/proj_' + proj_w[-5] + '.png')
                 # Add image to list
                 results.append(img[0].cpu().numpy())
-                if idx >= 1:
-                    print("OH NOOOOO")
+
     return results
 
 #----------------------------------------------------------------------------
