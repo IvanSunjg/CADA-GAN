@@ -16,6 +16,7 @@ from torchvision import transforms
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 from ImageSegmentation.pix2pixGAN.test import test_pix2pix
 from torchsummary import summary
+from sklearn.metrics.pairwise import cosine_similarity
 from scipy.spatial import distance
 from skimage.transform import resize
 
@@ -247,6 +248,10 @@ def main(args):
         os.makedirs(path + 'gan_reconstr/')
     if not os.path.exists(path + 'gan_latent/'):
         os.makedirs(path + 'gan_latent/')
+    if not os.path.exists(path + 'gan_train/'):
+        os.makedirs(path + 'gan_train/')
+    if not os.path.exists(path + 'gan_eval/'):
+        os.makedirs(path + 'gan_eval/')
 
     # GAN projection into latent space with styleGAN2 code
     logging.info('Converting parent and child images to latent space with StyleGAN2')
@@ -295,17 +300,24 @@ def main(args):
 
     # TODO PRETRAIN MODEL PARTIALLY
     # Convert images to latent vectors with StyleGAN2
-    latent_f, latent_m, latent_c = run_projection(network_pkl=args.stylegan_model,
-                                                  t_father=im_f, t_mother=im_m, t_child=im_c,
-                                                  outdir=path + "gan_latent", seed=303,
-                                                  num_steps=args.epochs_lat, save_video=False)
+    if not args.load_lat:
+        latent_f, latent_m, latent_c = run_projection(network_pkl=args.stylegan_model,
+                                                    t_father=im_f, t_mother=im_m, t_child=im_c,
+                                                    outdir=path + "gan_latent", seed=303,
+                                                    num_steps=args.epochs_lat, save_video=False)
+    else:
+        logging.info("Loading latent vectors from folder")
+        for i in range(0, len(im_f)):
+            latent_f.append(path + "gan_latent/projected_w_f_" + str(i) + ".npz")
+            latent_m.append(path + "gan_latent/projected_w_m_" + str(i) + ".npz")
+            latent_c.append(path + "gan_latent/projected_w_c_" + str(i) + ".npz")
     
     # Feature selection with 4-layer network
     logging.info('Setting up feature selection.')
     
     # Index where to split for train/test
     train_test_split = int(round(args.ratio*len(f_idx)))-1
-    logging.info('Traintestsplit ' + str(train_test_split))
+    logging.info('Train-test ratio ' + str(train_test_split))
 
     WLModel = WeightLatent()
     optim = torch.optim.Adam(list(WLModel.parameters()), lr=0.01)
@@ -335,8 +347,8 @@ def main(args):
             #logging.info('child pred shape ' + str(child_pred.shape))
             # Update loss depending on similarity of predicted child latent vector with real child latent vector
             # TODO UPDATE LOSS TO IMAGE INSTEAD OF LAT VECTOR
-            np.savez(f'{path + "gan_latent"}/projected_w_temp_' + "{}_{}.npz".format(epoch, num), w=child_pred.detach().cpu().numpy())
-            [child_pred_im, child_or_im] = generate_images(network_pkl=args.stylegan_model, outdir=path + "gan_latent", projected_w=[f'{path + "gan_latent"}/projected_w_temp_' + "{}_{}.npz".format(epoch, num), lc])
+            np.savez(f'{path + "gan_train"}/projected_w_temp_' + "{}_{}.npz".format(epoch, num), w=child_pred.detach().cpu().numpy())
+            [child_pred_im, child_or_im] = generate_images(network_pkl=args.stylegan_model, outdir=path + "gan_train", projected_w=[f'{path + "gan_train"}/projected_w_temp_' + "{}_{}.npz".format(epoch, num), lc])
             loss_im = F.mse_loss(input=torch.from_numpy(child_pred_im)[None, :].to(torch.float).to(args.device), target=torch.from_numpy(child_or_im)[None, :].to(torch.float).to(args.device), reduction='mean')
             loss = F.mse_loss(input=child_pred, target=lc_n, reduction='mean')
             loss.backward()
@@ -367,8 +379,8 @@ def main(args):
         child_pred = WLModel(lf_n, lm_n)
         child_pred = torch.reshape(child_pred[0], (16,512))[None, :]
         #logging.info('child pred final shape ' + str(child_pred.shape))
-        np.savez(f'{path + "gan_latent"}/projected_w_' + "{}.npz".format(j), w=child_pred.detach().cpu().numpy())
-        lat_saves.append(f'{path + "gan_latent"}/projected_w_' + "{}.npz".format(j))
+        np.savez(f'{path + "gan_eval"}/projected_w_' + "{}.npz".format(j), w=child_pred.detach().cpu().numpy())
+        lat_saves.append(f'{path + "gan_eval"}/projected_w_' + "{}.npz".format(j))
 
     data_list_seg_gen = generate_images(network_pkl=args.stylegan_model, outdir=path + "gan_reconstr", projected_w=lat_saves)
     #logging.info('datalistseggen len ' + str(len(data_list_seg_gen)))
@@ -464,6 +476,8 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, help="path to pretrained pix2pix GAN model")
     parser.add_argument("--load-seg", default=False, type=bool,
                         help="whether to load previous segmentations or start anew")
+    parser.add_argument("--load-lat", default=False, type=bool,
+                        help="whether to load previous latent vectors or start anew")
     parser.add_argument("--ratio", default=0.8, type=float, help="train to test ratio")
     parser.add_argument("--stylegan-model", action='store',
                         default="pretrained/ffhq-512-avg-tpurun1.pkl", type=str,
