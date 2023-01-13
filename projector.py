@@ -6,7 +6,7 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
-# Adapted by Sofie Daniëls for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
+# Adapted by Sofie DaniÃ«ls for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
 
 
 """Project given image to the latent space of pretrained network pickle."""
@@ -25,6 +25,7 @@ import torch.nn.functional as F
 
 import dnnlib
 import legacy
+import logging
 
 def project(
     G,
@@ -158,7 +159,7 @@ def run_projection(
     torch.manual_seed(seed)
 
     # Load networks.
-    print('Loading networks from "%s"...' % network_pkl)
+    logging.info('Loading networks from "%s"...' % network_pkl)
     device = torch.device('cuda')
     with dnnlib.util.open_url(network_pkl) as fp:
         G = legacy.load_network_pkl(fp)['G_ema'].requires_grad_(False).to(device) # type: ignore
@@ -169,11 +170,11 @@ def run_projection(
     results_f = []
     results_m = []
     results_c = []
-    print('listzip t len', len(list(zip(t_father, t_mother, t_child))))
+    #logging.info('listzip t len ' + str(len(list(zip(t_father, t_mother, t_child)))))
     
     for (target_f, target_m, target_c) in list(zip(t_father, t_mother, t_child)):
         # Copy G so that it starts anew for every latent vector generation and updates are not accumulated
-        print('target shape', target_f.shape)
+        #logging.info('target shape ' + str(target_f.shape))
 
         save_info = 'f_' + str(ctr)
         lat_f = parent_child_latent(transform, target_f, outdir, copy.deepcopy(G), device, num_steps, save_video, save_info)
@@ -189,7 +190,7 @@ def run_projection(
         torch.cuda.empty_cache()
 
         ctr += 1
-    print('results len', len(results_f))
+    #logging.info('results len ' + str(len(results_f)))
     return results_f, results_m, results_c
 
 def parent_child_latent(transform, target_t, outdir, G, device, num_steps, save_video, save_info):
@@ -207,7 +208,7 @@ def parent_child_latent(transform, target_t, outdir, G, device, num_steps, save_
         target=torch.tensor(target_uint8.transpose([2, 0, 1]), device=device), # pylint: disable=not-callable
         num_steps=num_steps,
         device=device,
-        verbose=True
+        verbose=False
     )
     print (f'Elapsed: {(perf_counter()-start_time):.1f} s')
 

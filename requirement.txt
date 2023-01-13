@@ -1,9 +1,18 @@
 numpy>=1.16.0
 scipy>=1.1.0
-torch>=1.1.0
-torchvision>=0.3.0
+torch==1.7.1+cu110
+torchvision==0.8.2+cu110
+torchaudio==0.7.2
+h5py==2.9.0
+torchsummary
 opencv-python>= 3.4.2
 tensorflow==2.8.4
 scikit-image
+scikit-learn
 matplotlib
-imageio
+imageio-ffmpeg
+click
+requests
+tqdm
+pyspng
+ninja
