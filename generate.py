@@ -6,7 +6,7 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
-# Adapted by Sofie DaniÃ«ls for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
+# Adapted by Sofie Daniëls for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
 
 """Generate images using pretrained network pickle."""
 
@@ -54,10 +54,10 @@ def generate_images(
     # If we have a list of .npz file locations, continue
     if projected_w is not None:
         #logging.info('len projected w in generate ' + str(len(projected_w)))
-        logging.info('Generating images from projected W')
+        #logging.info('Generating images from projected W')
         # Loop through all locations and load latent vectors
-        logging.info(str(projected_w))
-        for proj_w in projected_w:
+        #logging.info(str(projected_w))
+        for proj_w, filen in projected_w:
             #logging.info(str(proj_w))
             ws = np.load(proj_w)
             ws = ws['w']
@@ -71,7 +71,7 @@ def generate_images(
                 # From [-1,1] to [0, 255]
                 img = (img.permute(0, 2, 3, 1) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
                 # Save image in outdir
-                PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/proj_' + proj_w[-5] + '.png')
+                PIL.Image.fromarray(img[0].cpu().numpy(), 'RGB').save(f'{outdir}/proj_' + filen + '.png')
                 # Add image to list
                 results.append(img[0].cpu().numpy())
 
