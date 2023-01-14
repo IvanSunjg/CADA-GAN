@@ -1,8 +1,6 @@
 # This is the run script for the final pipeline version.
-# Please make sure every dependency is installed in the requirements.txt file.
 
 import argparse
-import gc
 import logging
 import numpy as np
 import torch
@@ -16,8 +14,6 @@ from torchvision import transforms
 from ImageSegmentation.face_parsing.face_parsing_test import face_parsing_test
 from ImageSegmentation.pix2pixGAN.test import test_pix2pix
 from MLP import FourLayerNet
-from torchsummary import summary
-from sklearn.metrics.pairwise import cosine_similarity
 from scipy.spatial import distance
 from skimage.transform import resize
 
@@ -28,16 +24,6 @@ from projector import run_projection
 from generate import generate_images
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-
-class WeightLatent(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.gamma = nn.Parameter(torch.tensor([0.5]).to(args.device))
-
-    def forward(self, lf, lm):
-        # lf, lm must be in the same device with gamma
-        lat = lf * self.gamma + lm * (1 - self.gamma)
-        return lat
 
 def main(args):
     logging.info("Setting up logger")
@@ -310,9 +296,9 @@ def main(args):
     # Convert images to latent vectors with StyleGAN2
     if not args.load_lat:
         latent_f, latent_m, latent_c = run_projection(network_pkl=args.stylegan_model,
-                                                    t_father=im_f, t_mother=im_m, t_child=im_c,
-                                                    outdir=path + "gan_latent", seed=303,
-                                                    num_steps=args.epochs_lat, save_video=False)
+                                                      t_father=im_f, t_mother=im_m, t_child=im_c,
+                                                      outdir=path + "gan_latent", seed=303,
+                                                      num_steps=args.epochs_lat, save_video=False)
     else:
         logging.info("Loading latent vectors from folder")
         for i in range(0, len(im_f)):
@@ -323,7 +309,6 @@ def main(args):
     # Feature selection with 4-layer network
     logging.info('Setting up feature selection.')
     model_p = FourLayerNet()
-    #logging.info(str(summary(model_p, torch.cat((latent_f[0], latent_m[0]), dim=2).shape)))
     model_p = model_p.to(args.device)
     optim = torch.optim.Adam(list(model_p.parameters()), lr=args.lr)
     loss_fn = nn.MSELoss(reduction='mean')
@@ -335,17 +320,13 @@ def main(args):
     for epoch in range(args.epochs):
         model_p.train()
         logging.info('Epoch ' + str(epoch + 1))
-        #logging.info('Ziplatent length ' + str(len(list(zip(latent_f, latent_m, latent_c)))))
         shuffled_set = np.arange(0, dataset_list_train, 1)
-        #logging.info("shuffled set" + str(shuffled_set))
         np.random.shuffle(shuffled_set)
-        #logging.info("shuffled shuffled set" + str(shuffled_set))
-        batch_size = 8
-        for num in range(0, len(shuffled_set), batch_size):
+        for num in range(0, len(shuffled_set), args.batch):
             latent_p = None
             latent_c_b = []
             latent_cn_b = None
-            for n in range(0, batch_size):
+            for n in range(0, args.batch):
                 #logging.info("batch num " + str(n))
                 b = shuffled_set[(n + num) % len(shuffled_set)]
                 lf_n = np.load(latent_f[b])
@@ -369,23 +350,16 @@ def main(args):
                     latent_cn_b = torch.cat((latent_cn_b, lc_n))
                     latent_c_b.append((latent_c[b], ''.join(filter(str.isdigit, latent_c[b]))))
                     latent_p = torch.cat((latent_p, torch.cat((lf_n, lm_n), dim=2)))
-                #logging.info("latent_p shape " + str(latent_p.shape))
-                #logging.info("latent_cn_b shape " + str(latent_cn_b.shape)) 
             # Predict child latent vector
             child_pred = model_p(latent_p.to(args.device))
             child_pred = child_pred.to(args.device)
             latent_cn_b = latent_cn_b.to(args.device)
             # Update loss depending on similarity of predicted child latent vector with real child latent vector
-            # TODO UPDATE LOSS TO IMAGE INSTEAD OF LAT VECTOR
             lat_loc_list = []
             for b, c_pred in enumerate(child_pred.detach().cpu().numpy()):
-                #logging.info("c_pred shape " + str(c_pred[None,:].shape))
-                #print('c pred latent range', np.amin(c_pred), np.amax(c_pred))
                 np.savez(f'{path + "gan_train"}/projected_w_temp_' + "{}_{}_{}.npz".format(epoch, num, b), w=c_pred[None,:])
                 lat_loc_list.append((f'{path + "gan_train"}/projected_w_temp_' + "{}_{}_{}.npz".format(epoch, num, b), "{}_{}_{}".format(epoch, num, b)))
-            #logging.info("latent_c_b + lat_loc_list " + str(latent_c_b + lat_loc_list))
             results = generate_images(network_pkl=args.stylegan_model, outdir=path + "gan_train", projected_w=latent_c_b + lat_loc_list)
-            #logging.info("results len/2" + str(len(results)/2))
             child_or_im, child_pred_im = np.asarray(results[0:int(len(results)/2)]), np.asarray(results[int(len(results)/2):])
             loss_im = F.mse_loss(input=torch.from_numpy(child_pred_im).to(torch.float).to(args.device), target=torch.from_numpy(child_or_im).to(torch.float).to(args.device), reduction='mean')
             loss = loss_fn(child_pred, latent_cn_b)
@@ -422,8 +396,7 @@ def main(args):
             child_pred = model_p(latent_p.to(args.device))
             child_pred = child_pred.to(args.device)
             latent_cn_b = latent_cn_b.to(args.device)
-            # Update loss depending on similarity of predicted child latent vector with real child latent vector
-            # TODO UPDATE LOSS TO IMAGE INSTEAD OF LAT VECTOR
+            # Calculate validation loss depending on similarity of predicted child latent vector with real child latent vector
             lat_loc_list = []
             for b, c_pred in enumerate(child_pred.detach().cpu().numpy()):
                 np.savez(f'{path + "gan_val"}/projected_w_temp_' + "{}_{}_{}.npz".format(epoch, num, b), w=c_pred[None,:])
@@ -454,13 +427,10 @@ def main(args):
         latent_p = torch.cat((lf_n, lm_n), dim=2).to(args.device)
         child_pred = model_p(latent_p)
         child_pred = torch.reshape(child_pred[0], (16,512))[None, :]
-        #logging.info('child pred final shape ' + str(child_pred.shape))
         np.savez(f'{path + "gan_test"}/projected_w_' + "{}.npz".format(j), w=child_pred.detach().cpu().numpy())
         lat_saves.append((f'{path + "gan_test"}/projected_w_' + "{}.npz".format(j), str(j)))
 
     data_list_seg_gen = generate_images(network_pkl=args.stylegan_model, outdir=path + "gan_reconstr", projected_w=lat_saves)
-    #logging.info('datalistseggen len ' + str(len(data_list_seg_gen)))
-    #logging.info('datalistseggen entry shape ' + str(data_list_seg_gen[0].shape))
     for i in range(train_test_split, len(latent_f)):
         print(train_test_split, len(latent_f))
         or_im = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))
@@ -468,9 +438,6 @@ def main(args):
         #plt.show()
         data_list_real.append(or_im)
     
-    #logging.info('datalistreal len ' + str(len(data_list_real)))
-    #logging.info('datalistreal entry shape ' + str(data_list_real[0].shape))
-
     # Undo image segmentation with pretrained pix2pix GAN
     if args.segment:
         logging.info('Undoing segmentation.')
@@ -568,6 +535,8 @@ if __name__ == "__main__":
                         type=str, help="path to dataset")
     parser.add_argument("--dataset","-d",default="FMS", type=str,
                         help="argument to decide which dataset to use. Default setting is FMS")
+    parser.add_argument("--batch", "-b", default=8, type=int,
+                        help="batch size for feature selection. Default is 8.")
 
     # Parsing the argument to the args
     args = parser.parse_args()
