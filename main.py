@@ -289,7 +289,6 @@ def main(args):
     latent_m = []
     latent_c = []
 
-    # TODO PRETRAIN MODEL PARTIALLY
     # Index where to split for train/test
     train_test_split = int(round(args.ratio*len(f_idx)))-1
     logging.info('Train-test ratio ' + str(train_test_split))
@@ -297,8 +296,6 @@ def main(args):
         
     if args.transfer_learn:
         train()
-    # Convert images to latent vectors with StyleGAN2
-
 
     # load learned transfer learning model
     latest = -1
@@ -311,7 +308,7 @@ def main(args):
                 latest_file = file
     stylegan_model = 'pretrained/' + latest_file
 
-
+    # Convert images to latent vectors with StyleGAN2
     if not args.load_lat:
         latent_f, latent_m, latent_c = run_projection(network_pkl=stylegan_model,
                                                       t_father=im_f, t_mother=im_m, t_child=im_c,
