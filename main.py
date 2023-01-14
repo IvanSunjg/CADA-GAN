@@ -302,6 +302,11 @@ def main(args):
     latent_c = []
 
     # TODO PRETRAIN MODEL PARTIALLY
+    # Index where to split for train/test
+    train_test_split = int(round(args.ratio*len(f_idx)))-1
+    logging.info('Train-test ratio ' + str(train_test_split))
+
+    new_model = train(args.stylegan_model, dataset, epochs, ...)
     # Convert images to latent vectors with StyleGAN2
     if not args.load_lat:
         latent_f, latent_m, latent_c = run_projection(network_pkl=args.stylegan_model,
@@ -323,9 +328,6 @@ def main(args):
     optim = torch.optim.Adam(list(model_p.parameters()), lr=args.lr)
     loss_fn = nn.MSELoss(reduction='mean')
     
-    # Index where to split for train/test
-    train_test_split = int(round(args.ratio*len(f_idx)))-1
-    logging.info('Train-test ratio ' + str(train_test_split))
 
     # Train 4-layer network only on training set
     dataset_list_train, dataset_list_val = int(train_test_split*args.ratio), train_test_split-int(train_test_split*args.ratio)
@@ -564,8 +566,8 @@ if __name__ == "__main__":
     parser.add_argument("--device", default='cuda:0', help="cuda device (gpu only)")
     parser.add_argument("--data-path", default='dataset/TSKinFace_Data_HR/TSKinFace_cropped/',
                         type=str, help="path to dataset")
-    parser.add_argument("--dataset","-d",default="FMD", type=str,
-                        help="argument to decide which dataset to use. Default setting is FMD")
+    parser.add_argument("--dataset","-d",default="FMS", type=str,
+                        help="argument to decide which dataset to use. Default setting is FMS")
 
     # Parsing the argument to the args
     args = parser.parse_args()
