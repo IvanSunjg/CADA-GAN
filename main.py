@@ -22,6 +22,7 @@ import imageio
 
 from projector import run_projection
 from generate import generate_images
+from train import train
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
@@ -292,7 +293,9 @@ def main(args):
     train_test_split = int(round(args.ratio*len(f_idx)))-1
     logging.info('Train-test ratio ' + str(train_test_split))
 
-    new_model = train(args.stylegan_model, dataset, epochs, ...)
+        
+    if args.transfer_learn:
+        train()
     # Convert images to latent vectors with StyleGAN2
     if not args.load_lat:
         latent_f, latent_m, latent_c = run_projection(network_pkl=args.stylegan_model,
@@ -522,7 +525,7 @@ if __name__ == "__main__":
                         help="whether to load previous latent vectors or start anew")
     parser.add_argument("--ratio", default=0.8, type=float, help="train to test ratio")
     parser.add_argument("--stylegan-model", action='store',
-                        default="pretrained/ffhq-512-avg-tpurun1.pkl", type=str,
+                        default="training-runs/00000-FMS-M-mirror-paper512-resumeffhq512/network-snapshot-000040.pkl", type=str,
                         help="location of pretrained StyleGAN2 model")
     parser.add_argument("--lr", action='store', default=0.00001, type=float,
                         help="learning rate for parent latent vector mixing")
@@ -537,6 +540,7 @@ if __name__ == "__main__":
                         help="argument to decide which dataset to use. Default setting is FMS")
     parser.add_argument("--batch", "-b", default=8, type=int,
                         help="batch size for feature selection. Default is 8.")
+    parser.add_argument("--transfer-learn", type=bool, default=False, help="use transfer learning or not")
 
     # Parsing the argument to the args
     args = parser.parse_args()
