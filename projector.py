@@ -26,6 +26,7 @@ import torch.nn.functional as F
 import dnnlib
 import legacy
 import logging
+from tqdm import tqdm
 
 def project(
     G,
@@ -172,7 +173,7 @@ def run_projection(
     results_c = []
     #logging.info('listzip t len ' + str(len(list(zip(t_father, t_mother, t_child)))))
     
-    for (target_f, target_m, target_c) in list(zip(t_father, t_mother, t_child)):
+    for (target_f, target_m, target_c) in list(tqdm(zip(t_father, t_mother, t_child))):
         # Copy G so that it starts anew for every latent vector generation and updates are not accumulated
         #logging.info('target shape ' + str(target_f.shape))
 
