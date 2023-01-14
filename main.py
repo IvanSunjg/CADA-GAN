@@ -23,6 +23,7 @@ import imageio
 from projector import run_projection
 from generate import generate_images
 from train import train
+from tqdm import tqdm
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
@@ -297,8 +298,22 @@ def main(args):
     if args.transfer_learn:
         train()
     # Convert images to latent vectors with StyleGAN2
+
+
+    # load learned transfer learning model
+    latest = -1
+    latest_file = ''
+    for file in os.listdir('pretrained/'):
+        if file.startswith('network-snapshot-'):
+            a = ''.join(filter(str.isdigit, file))
+            if int(a) > latest:
+                latest = int(a)
+                latest_file = file
+    stylegan_model = 'pretrained/' + latest_file
+
+
     if not args.load_lat:
-        latent_f, latent_m, latent_c = run_projection(network_pkl=args.stylegan_model,
+        latent_f, latent_m, latent_c = run_projection(network_pkl=stylegan_model,
                                                       t_father=im_f, t_mother=im_m, t_child=im_c,
                                                       outdir=path + "gan_latent", seed=303,
                                                       num_steps=args.epochs_lat, save_video=False)
@@ -320,7 +335,7 @@ def main(args):
     # Train 4-layer network only on training set
     dataset_list_train, dataset_list_val = int(train_test_split*args.ratio), train_test_split-int(train_test_split*args.ratio)
     logging.info('Starting training')
-    for epoch in range(args.epochs):
+    for epoch in range(tqdm(args.epochs)):
         model_p.train()
         logging.info('Epoch ' + str(epoch + 1))
         shuffled_set = np.arange(0, dataset_list_train, 1)
@@ -362,7 +377,7 @@ def main(args):
             for b, c_pred in enumerate(child_pred.detach().cpu().numpy()):
                 np.savez(f'{path + "gan_train"}/projected_w_temp_' + "{}_{}_{}.npz".format(epoch, num, b), w=c_pred[None,:])
                 lat_loc_list.append((f'{path + "gan_train"}/projected_w_temp_' + "{}_{}_{}.npz".format(epoch, num, b), "{}_{}_{}".format(epoch, num, b)))
-            results = generate_images(network_pkl=args.stylegan_model, outdir=path + "gan_train", projected_w=latent_c_b + lat_loc_list)
+            results = generate_images(network_pkl=stylegan_model, outdir=path + "gan_train", projected_w=latent_c_b + lat_loc_list)
             child_or_im, child_pred_im = np.asarray(results[0:int(len(results)/2)]), np.asarray(results[int(len(results)/2):])
             loss_im = F.mse_loss(input=torch.from_numpy(child_pred_im).to(torch.float).to(args.device), target=torch.from_numpy(child_or_im).to(torch.float).to(args.device), reduction='mean')
             loss = loss_fn(child_pred, latent_cn_b)
@@ -404,7 +419,7 @@ def main(args):
             for b, c_pred in enumerate(child_pred.detach().cpu().numpy()):
                 np.savez(f'{path + "gan_val"}/projected_w_temp_' + "{}_{}_{}.npz".format(epoch, num, b), w=c_pred[None,:])
                 lat_loc_list.append((f'{path + "gan_val"}/projected_w_temp_' + "{}_{}_{}.npz".format(epoch, num, b), "{}_{}_{}".format(epoch, num, b)))
-            results = generate_images(network_pkl=args.stylegan_model, outdir=path + "gan_val", projected_w=latent_c_b + lat_loc_list)
+            results = generate_images(network_pkl=stylegan_model, outdir=path + "gan_val", projected_w=latent_c_b + lat_loc_list)
             child_or_im, child_pred_im = np.asarray(results[0:int(len(results)/2)]), np.asarray(results[int(len(results)/2):])
             loss_im = F.mse_loss(input=torch.from_numpy(child_pred_im).to(torch.float).to(args.device), target=torch.from_numpy(child_or_im).to(torch.float).to(args.device), reduction='mean')
             loss = loss_fn(child_pred, latent_cn_b)
@@ -433,7 +448,7 @@ def main(args):
         np.savez(f'{path + "gan_test"}/projected_w_' + "{}.npz".format(j), w=child_pred.detach().cpu().numpy())
         lat_saves.append((f'{path + "gan_test"}/projected_w_' + "{}.npz".format(j), str(j)))
 
-    data_list_seg_gen = generate_images(network_pkl=args.stylegan_model, outdir=path + "gan_reconstr", projected_w=lat_saves)
+    data_list_seg_gen = generate_images(network_pkl=stylegan_model, outdir=path + "gan_reconstr", projected_w=lat_saves)
     for i in range(train_test_split, len(latent_f)):
         print(train_test_split, len(latent_f))
         or_im = np.transpose(dataset_orig[c_idx[i]][0].numpy(), (1, 2, 0))
@@ -524,9 +539,9 @@ if __name__ == "__main__":
     parser.add_argument("--load-lat", default=False, type=bool,
                         help="whether to load previous latent vectors or start anew")
     parser.add_argument("--ratio", default=0.8, type=float, help="train to test ratio")
-    parser.add_argument("--stylegan-model", action='store',
-                        default="training-runs/00000-FMS-M-mirror-paper512-resumeffhq512/network-snapshot-000040.pkl", type=str,
-                        help="location of pretrained StyleGAN2 model")
+    # parser.add_argument("--stylegan-model", action='store',
+    #                     default="training-runs/00000-FMS-M-mirror-paper512-resumeffhq512/network-snapshot-000040.pkl", type=str,
+    #                     help="location of pretrained StyleGAN2 model")
     parser.add_argument("--lr", action='store', default=0.00001, type=float,
                         help="learning rate for parent latent vector mixing")
     parser.add_argument("--epochs", action='store', default=200, type=int,
