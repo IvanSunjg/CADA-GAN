@@ -6,7 +6,7 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
-# Adapted by Sofie Daniëls for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
+# Adapted by Sofie DaniÃ«ls for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
 
 
 """Project given image to the latent space of pretrained network pickle."""
