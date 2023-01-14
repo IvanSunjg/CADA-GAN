@@ -31,39 +31,39 @@ class UserError(Exception):
 
 def setup_training_loop_kwargs(
     # General options (not included in desc).
-    gpus       = None, # Number of GPUs: <int>, default = 1 gpu
-    snap       = None, # Snapshot interval: <int>, default = 50 ticks
-    metrics    = None, # List of metric names: [], ['fid50k_full'] (default), ...
-    seed       = None, # Random seed: <int>, default = 0
+    gpus       = 1,
+    snap       = 10,  # Snapshot interval: <int>, default = 50 ticks
+    metrics    = ['fid50k_full'], # List of metric names: [], ['fid50k_full'] (default), ...
+    seed       = 0, # Random seed: <int>, default = 0
 
     # Dataset.
-    data       = None, # Training dataset (required): <path>
-    cond       = None, # Train conditional model based on dataset labels: <bool>, default = False
-    subset     = None, # Train with only N images: <int>, default = all
-    mirror     = None, # Augment dataset with x-flips: <bool>, default = False
+    data       = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMS/FMS-M', # Training dataset (required): <path>
+    cond       = False, # Train conditional model based on dataset labels: <bool>, default = False
+    subset     = 32, # Train with only N images: <int>, default = all
+    mirror     = False, # Augment dataset with x-flips: <bool>, default = False
 
     # Base config.
-    cfg        = None, # Base config: 'auto' (default), 'stylegan2', 'paper256', 'paper512', 'paper1024', 'cifar'
+    cfg        = 'paper512', # Base config: 'auto' (default), 'stylegan2', 'paper256', 'paper512', 'paper1024', 'cifar'
     gamma      = None, # Override R1 gamma: <float>
     kimg       = None, # Override training duration: <int>
     batch      = None, # Override batch size: <int>
 
     # Discriminator augmentation.
-    aug        = None, # Augmentation mode: 'ada' (default), 'noaug', 'fixed'
+    aug        = 'ada', # Augmentation mode: 'ada' (default), 'noaug', 'fixed'
     p          = None, # Specify p for 'fixed' (required): <float>
     target     = None, # Override ADA target for 'ada': <float>, default = depends on aug
-    augpipe    = None, # Augmentation pipeline: 'blit', 'geom', 'color', 'filter', 'noise', 'cutout', 'bg', 'bgc' (default), ..., 'bgcfnc'
+    augpipe    = 'bgc', # Augmentation pipeline: 'blit', 'geom', 'color', 'filter', 'noise', 'cutout', 'bg', 'bgc' (default), ..., 'bgcfnc'
 
     # Transfer learning.
-    resume     = None, # Load previous network: 'noresume' (default), 'ffhq256', 'ffhq512', 'ffhq1024', 'celebahq256', 'lsundog256', <file>, <url>
-    freezed    = None, # Freeze-D: <int>, default = 0 discriminator layers
+    resume     = 'ffhq512', # Load previous network: 'noresume' (default), 'ffhq256', 'ffhq512', 'ffhq1024', 'celebahq256', 'lsundog256', <file>, <url>
+    freezed    = 0, # Freeze-D: <int>, default = 0 discriminator layers
 
     # Performance options (not included in desc).
-    fp32       = None, # Disable mixed-precision training: <bool>, default = False
-    nhwc       = None, # Use NHWC memory format with FP16: <bool>, default = False
-    allow_tf32 = None, # Allow PyTorch to use TF32 for matmul and convolutions: <bool>, default = False
-    nobench    = None, # Disable cuDNN benchmarking: <bool>, default = False
-    workers    = None, # Override number of DataLoader workers: <int>, default = 3
+    fp32       = False,
+    nhwc       = False,
+    allow_tf32 = False,
+    nobench    = False,
+    workers    = 3,
 ):
     args = dnnlib.EasyDict()
 
@@ -395,47 +395,47 @@ class CommaSeparatedList(click.ParamType):
 
 #----------------------------------------------------------------------------
 
-@click.command()
-@click.pass_context
+# @click.command()
+# @click.pass_context
 
-# General options.
-@click.option('--outdir', help='Where to save the results', required=True, metavar='DIR')
-@click.option('--gpus', help='Number of GPUs to use [default: 1]', type=int, metavar='INT')
-@click.option('--snap', help='Snapshot interval [default: 50 ticks]', type=int, metavar='INT')
-@click.option('--metrics', help='Comma-separated list or "none" [default: fid50k_full]', type=CommaSeparatedList())
-@click.option('--seed', help='Random seed [default: 0]', type=int, metavar='INT')
-@click.option('-n', '--dry-run', help='Print training options and exit', is_flag=True)
+# # General options.
+# @click.option('--outdir', help='Where to save the results', required=True, metavar='DIR')
+# @click.option('--gpus', help='Number of GPUs to use [default: 1]', type=int, metavar='INT')
+# @click.option('--snap', help='Snapshot interval [default: 50 ticks]', type=int, metavar='INT')
+# @click.option('--metrics', help='Comma-separated list or "none" [default: fid50k_full]', type=CommaSeparatedList())
+# @click.option('--seed', help='Random seed [default: 0]', type=int, metavar='INT')
+# @click.option('-n', '--dry-run', help='Print training options and exit', is_flag=True)
 
-# Dataset.
-@click.option('--data', help='Training data (directory or zip)', metavar='PATH', required=True)
-@click.option('--cond', help='Train conditional model based on dataset labels [default: false]', type=bool, metavar='BOOL')
-@click.option('--subset', help='Train with only N images [default: all]', type=int, metavar='INT')
-@click.option('--mirror', help='Enable dataset x-flips [default: false]', type=bool, metavar='BOOL')
+# # Dataset.
+# @click.option('--data', help='Training data (directory or zip)', metavar='PATH', required=True)
+# @click.option('--cond', help='Train conditional model based on dataset labels [default: false]', type=bool, metavar='BOOL')
+# @click.option('--subset', help='Train with only N images [default: all]', type=int, metavar='INT')
+# @click.option('--mirror', help='Enable dataset x-flips [default: false]', type=bool, metavar='BOOL')
 
-# Base config.
-@click.option('--cfg', help='Base config [default: auto]', type=click.Choice(['auto', 'stylegan2', 'paper256', 'paper512', 'paper1024', 'cifar']))
-@click.option('--gamma', help='Override R1 gamma', type=float)
-@click.option('--kimg', help='Override training duration', type=int, metavar='INT')
-@click.option('--batch', help='Override batch size', type=int, metavar='INT')
+# # Base config.
+# @click.option('--cfg', help='Base config [default: auto]', type=click.Choice(['auto', 'stylegan2', 'paper256', 'paper512', 'paper1024', 'cifar']))
+# @click.option('--gamma', help='Override R1 gamma', type=float)
+# @click.option('--kimg', help='Override training duration', type=int, metavar='INT')
+# @click.option('--batch', help='Override batch size', type=int, metavar='INT')
 
-# Discriminator augmentation.
-@click.option('--aug', help='Augmentation mode [default: ada]', type=click.Choice(['noaug', 'ada', 'fixed']))
-@click.option('--p', help='Augmentation probability for --aug=fixed', type=float)
-@click.option('--target', help='ADA target value for --aug=ada', type=float)
-@click.option('--augpipe', help='Augmentation pipeline [default: bgc]', type=click.Choice(['blit', 'geom', 'color', 'filter', 'noise', 'cutout', 'bg', 'bgc', 'bgcf', 'bgcfn', 'bgcfnc']))
+# # Discriminator augmentation.
+# @click.option('--aug', help='Augmentation mode [default: ada]', type=click.Choice(['noaug', 'ada', 'fixed']))
+# @click.option('--p', help='Augmentation probability for --aug=fixed', type=float)
+# @click.option('--target', help='ADA target value for --aug=ada', type=float)
+# @click.option('--augpipe', help='Augmentation pipeline [default: bgc]', type=click.Choice(['blit', 'geom', 'color', 'filter', 'noise', 'cutout', 'bg', 'bgc', 'bgcf', 'bgcfn', 'bgcfnc']))
 
-# Transfer learning.
-@click.option('--resume', help='Resume training [default: noresume]', metavar='PKL')
-@click.option('--freezed', help='Freeze-D [default: 0 layers]', type=int, metavar='INT')
+# # Transfer learning.
+# @click.option('--resume', help='Resume training [default: noresume]', metavar='PKL')
+# @click.option('--freezed', help='Freeze-D [default: 0 layers]', type=int, metavar='INT')
 
-# Performance options.
-@click.option('--fp32', help='Disable mixed-precision training', type=bool, metavar='BOOL')
-@click.option('--nhwc', help='Use NHWC memory format with FP16', type=bool, metavar='BOOL')
-@click.option('--nobench', help='Disable cuDNN benchmarking', type=bool, metavar='BOOL')
-@click.option('--allow-tf32', help='Allow PyTorch to use TF32 internally', type=bool, metavar='BOOL')
-@click.option('--workers', help='Override number of DataLoader workers', type=int, metavar='INT')
+# # Performance options.
+# @click.option('--fp32', help='Disable mixed-precision training', type=bool, metavar='BOOL')
+# @click.option('--nhwc', help='Use NHWC memory format with FP16', type=bool, metavar='BOOL')
+# @click.option('--nobench', help='Disable cuDNN benchmarking', type=bool, metavar='BOOL')
+# @click.option('--allow-tf32', help='Allow PyTorch to use TF32 internally', type=bool, metavar='BOOL')
+# @click.option('--workers', help='Override number of DataLoader workers', type=int, metavar='INT')
 
-def main(ctx, outdir, dry_run, **config_kwargs):
+def train( outdir = '~/training-runs'):
     """Train a GAN using the techniques described in the paper
     "Training Generative Adversarial Networks with Limited Data".
 
@@ -482,10 +482,9 @@ def main(ctx, outdir, dry_run, **config_kwargs):
     dnnlib.util.Logger(should_flush=True)
 
     # Setup training options.
-    try:
-        run_desc, args = setup_training_loop_kwargs(**config_kwargs)
-    except UserError as err:
-        ctx.fail(err)
+
+    run_desc, args = setup_training_loop_kwargs()
+
 
     # Pick output directory.
     prev_run_dirs = []
@@ -510,12 +509,7 @@ def main(ctx, outdir, dry_run, **config_kwargs):
     print(f'Image resolution:   {args.training_set_kwargs.resolution}')
     print(f'Conditional model:  {args.training_set_kwargs.use_labels}')
     print(f'Dataset x-flips:    {args.training_set_kwargs.xflip}')
-    print()
 
-    # Dry run?
-    if dry_run:
-        print('Dry run; exiting.')
-        return
 
     # Create output directory.
     print('Creating output directory...')
@@ -535,6 +529,6 @@ def main(ctx, outdir, dry_run, **config_kwargs):
 #----------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    main() # pylint: disable=no-value-for-parameter
+    train() # pylint: disable=no-value-for-parameter
 
 #----------------------------------------------------------------------------
