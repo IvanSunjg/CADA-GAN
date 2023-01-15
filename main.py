@@ -16,6 +16,7 @@ from ImageSegmentation.pix2pixGAN.test import test_pix2pix
 from MLP import FourLayerNet
 from scipy.spatial import distance
 from skimage.transform import resize
+from PIL import Image
 
 import matplotlib.pyplot as plt
 import imageio
@@ -284,10 +285,20 @@ def main(args):
         im_f.append(image_f)
         im_m.append(image_m)
         im_c.append(image_c)
+    
+        image_f = (image_f.permute(1, 2, 0) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+        image_m = (image_m.permute(1, 2, 0) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+        image_c = (image_c.permute(1, 2, 0) * 127.5 + 128).clamp(0, 255).to(torch.uint8)
+        Image.fromarray(image_f.numpy(), 'RGB').save('dataset/augmented/augmented_f_{}.png'.format(num))
+        Image.fromarray(image_m.numpy(), 'RGB').save('dataset/augmented/augmented_m_{}.png'.format(num))
+        Image.fromarray(image_c.numpy(), 'RGB').save('dataset/augmented/augmented_c_{}.png'.format(num))
 
     latent_f = []
     latent_m = []
     latent_c = []
+    
+    
+    
 
     # Index where to split for train/test
     train_test_split = int(round(args.ratio*len(f_idx)))-1
@@ -296,17 +307,18 @@ def main(args):
         
     if args.transfer_learn:
         train()
-
-    # load learned transfer learning model
-    latest = -1
-    latest_file = ''
-    for file in os.listdir('pretrained/'):
-        if file.startswith('network-snapshot-'):
-            a = ''.join(filter(str.isdigit, file))
-            if int(a) > latest:
-                latest = int(a)
-                latest_file = file
-    stylegan_model = 'pretrained/' + latest_file
+        # load learned transfer learning model
+        latest = -1
+        latest_file = ''
+        for file in os.listdir('pretrained/'):
+            if file.startswith('network-snapshot-'):
+                a = ''.join(filter(str.isdigit, file))
+                if int(a) > latest:
+                    latest = int(a)
+                    latest_file = file
+        stylegan_model = 'pretrained/' + latest_file
+    else:
+        stylegan_model = 'pretrained/' + 'ffhq-512-avg-tpurun1.pkl'
 
     # Convert images to latent vectors with StyleGAN2
     if not args.load_lat:
