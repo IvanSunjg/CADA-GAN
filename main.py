@@ -311,9 +311,9 @@ def main(args):
     else:
         logging.info("Loading latent vectors from folder")
         for i in range(0, len(im_f)):
-            latent_f.append(path + "gan_latent/projected_w_f_" + str(i) + ".npz")
-            latent_m.append(path + "gan_latent/projected_w_m_" + str(i) + ".npz")
-            latent_c.append(path + "gan_latent/projected_w_c_" + str(i) + ".npz")
+            latent_f.append(path + "gan_latent/projected_w_f_" + str(i+1) + ".npz")
+            latent_m.append(path + "gan_latent/projected_w_m_" + str(i+1) + ".npz")
+            latent_c.append(path + "gan_latent/projected_w_c_" + str(i+1) + ".npz")
     
     # Feature selection with 4-layer network
     logging.info('Setting up feature selection.')
