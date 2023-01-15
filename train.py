@@ -37,14 +37,14 @@ class UserError(Exception):
 def setup_training_loop_kwargs(
     # General options (not included in desc).
     gpus       = 1,
-    snap       = 10,  # Snapshot interval: <int>, default = 50 ticks
+    snap       = 5,  # Snapshot interval: <int>, default = 50 ticks
     metrics    = ['fid50k_full'], # List of metric names: [], ['fid50k_full'] (default), ...
     seed       = 0, # Random seed: <int>, default = 0
 
     # Dataset.
     data       = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMS/FMS-M', # Training dataset (required): <path>
     cond       = False, # Train conditional model based on dataset labels: <bool>, default = False
-    subset     = 32, # Train with only N images: <int>, default = all
+    subset     = None, # Train with only N images: <int>, default = all
     mirror     = False, # Augment dataset with x-flips: <bool>, default = False
 
     # Base config.
