@@ -28,14 +28,12 @@ def augmix(img, k=3, w=[0.2, 0.3, 0.5], m=0.2, level=2):
     if k != len(w):
         raise ValueError(f'k={k} must match the length of w={len(w)}!')
 
-    auglist = ["hflip", "vflip", "rotate", "translate_x", "translate_y", "shear_x", "shear_y"]
+    auglist = ["hflip", "rotate", "translate_x", "translate_y", "shear_x", "shear_y"]
     augs = np.random.choice(auglist, k)
     images = []
     for aug in augs:
         if aug == "hflip":
             new_image = transforms.functional.hflip(img)
-        elif aug == "vflip":
-            new_image = transforms.functional.vflip(img)
         elif aug == "rotate":
             # small rotation degree in order to keep the image from being destroyed
             new_image = transforms.functional.rotate(img, np.random.randint(-10 * level, 10 * level))
