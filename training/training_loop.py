@@ -410,8 +410,7 @@ def training_loop(
         tick_start_nimg = cur_nimg
         tick_start_time = time.time()
         maintenance_time = tick_start_time - tick_end_time
-        # Can be changed to lower if we don't need to train for long.
-        if cur_tick > 20:
+        if cur_tick > 30:
             done = True
         if done:
             break
