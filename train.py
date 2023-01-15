@@ -6,10 +6,11 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
+# Adapted by Jiaqing Xie and Sofie Daniels for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
+
+
 """Train a GAN using the techniques described in the paper
 "Training Generative Adversarial Networks with Limited Data"."""
-
-# Adapted by Jiaqing Xie for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
 
 import os
 import click
@@ -23,6 +24,8 @@ from training import training_loop
 from metrics import metric_main
 from torch_utils import training_stats
 from torch_utils import custom_ops
+
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 #----------------------------------------------------------------------------
 
@@ -294,7 +297,7 @@ def setup_training_loop_kwargs(
 
     resume_specs = {
         'ffhq256':     'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/transfer-learning-source-nets/ffhq-res256-mirror-paper256-noaug.pkl',
-        'ffhq512':     'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/transfer-learning-source-nets/ffhq-res512-mirror-stylegan2-noaug.pkl',
+        'ffhq512':     'pretrained/ffhq-res512-mirror-stylegan2-noaug.pkl',
         'ffhq1024':    'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/transfer-learning-source-nets/ffhq-res1024-mirror-stylegan2-noaug.pkl',
         'celebahq256': 'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/transfer-learning-source-nets/celebahq-res256-mirror-paper256-kimg100000-ada-target0.5.pkl',
         'lsundog256':  'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/transfer-learning-source-nets/lsundog-res256-paper256-kimg100000-noaug.pkl',
@@ -447,7 +450,7 @@ def train( outdir = '~/training-runs/FMS/', data = 'dataset/TSKinFace_Data_HR/TS
 
     # Setup training options.
 
-    run_desc, args = setup_training_loop_kwargs(data = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMS/FMS-M')
+    run_desc, args = setup_training_loop_kwargs(data = data)
     
 
 
@@ -494,17 +497,6 @@ def train( outdir = '~/training-runs/FMS/', data = 'dataset/TSKinFace_Data_HR/TS
 #----------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    train(outdir = '~/training-runs/FMS/', data = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMS/FMS-M')
-    train(outdir = '~/training-runs/FMS/', data = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMS/FMS-F')
-    train(outdir = '~/training-runs/FMS/', data = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMS/FMS-Z')
-    
-    train(outdir = '~/training-runs/FMD/', data = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMD/FMD-M')
-    train(outdir = '~/training-runs/FMD/', data = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMD/FMD-F')
-    train(outdir = '~/training-runs/FMD/', data = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMD/FMD-Z') 
-    
-    train(outdir = '~/training-runs/FMSD/', data = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMSD/FMSD-M')
-    train(outdir = '~/training-runs/FMSD/', data = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMSD/FMSD-F')
-    train(outdir = '~/training-runs/FMSD/', data = 'dataset/TSKinFace_Data_HR/TSKinFace_cropped/FMSD/FMSD-Z')
-    
+    train()
 
 #----------------------------------------------------------------------------
