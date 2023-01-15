@@ -6,7 +6,7 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
-# Adapted by Sofie DaniÃ«ls for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
+# Adapted by Sofie Daniëls for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
 
 
 """Project given image to the latent space of pretrained network pickle."""
@@ -40,7 +40,7 @@ def project(
     lr_rampup_length           = 0.05,
     noise_ramp_length          = 0.75,
     regularize_noise_weight    = 1e5,
-    verbose                    = False,
+    verbose                    = True,
     device: torch.device
 ):
     assert target.shape == (G.img_channels, G.img_resolution, G.img_resolution)
@@ -173,7 +173,7 @@ def run_projection(
     results_c = []
     #logging.info('listzip t len ' + str(len(list(zip(t_father, t_mother, t_child)))))
     
-    for (target_f, target_m, target_c) in list(tqdm(zip(t_father, t_mother, t_child))):
+    for (target_f, target_m, target_c) in tqdm(list(zip(t_father, t_mother, t_child))):
         # Copy G so that it starts anew for every latent vector generation and updates are not accumulated
         #logging.info('target shape ' + str(target_f.shape))
 
@@ -211,7 +211,7 @@ def parent_child_latent(transform, target_t, outdir, G, device, num_steps, save_
         device=device,
         verbose=False
     )
-    print (f'Elapsed: {(perf_counter()-start_time):.1f} s')
+   # print (f'Elapsed: {(perf_counter()-start_time):.1f} s')
 
     # Render debug output: optional video and projected image and W vector.
     os.makedirs(outdir, exist_ok=True)
