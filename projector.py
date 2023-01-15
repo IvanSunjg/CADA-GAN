@@ -167,7 +167,7 @@ def run_projection(
 
     # Load target image.
     transform = T.ToPILImage()
-    ctr = 0
+    ctr = 1
     results_f = []
     results_m = []
     results_c = []
