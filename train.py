@@ -9,6 +9,8 @@
 """Train a GAN using the techniques described in the paper
 "Training Generative Adversarial Networks with Limited Data"."""
 
+# Adapted by Jiaqing Xie for the final project in the Course 'Deep Learning' (2022) at ETH Zurich
+
 import os
 import click
 import re
