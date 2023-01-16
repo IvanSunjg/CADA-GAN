@@ -67,5 +67,5 @@ You have to download and extract the folder 'pretrained' in the working director
 
 Example: run with augmentation (mixup) and color segmentation
 ```bash
-python main.py --augment --mixup --segment 1 --model 'ImageSegmentation/pix2pixGAN/models/model_seg0_256.h5'
+python main.py --augment True --mixup True --segment 1 --transfer-learn True --model "ImageSegmentation/pix2pixGAN/models/model_seg0_256.h5" --epochs-lat 400
 ```
