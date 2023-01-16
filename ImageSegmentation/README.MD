@@ -4,4 +4,3 @@
 - [X] upload pix2pixGAN
 - [X] add parser to pix2pixGAN
 - [X] upload readme for pix2pixGAN
-- [ ] add image augmentation dataset 
