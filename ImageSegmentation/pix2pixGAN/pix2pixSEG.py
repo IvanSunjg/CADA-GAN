@@ -1,5 +1,6 @@
 # from https://machinelearningmastery.com/how-to-develop-a-pix2pix-gan-for-image-to-image-translation/
 from argparse import ArgumentParser
+import random
 from numpy.random import randint
 from numpy import zeros, ones
 import matplotlib
@@ -16,11 +17,15 @@ import os
 import gc
 import numpy
 import imageio
+import cv2
+import logging
+
+from skimage.transform import resize
 
 # Parse command-line arguments
 parser = ArgumentParser()
 parser.add_argument('--train', '-i', help='Path to training images',
-					default='.../train')
+					default='.../train/')
 parser.add_argument('--test', '-e', help='Path to test images',
 					default='.../test/')
 parser.add_argument('--val', '-v', help='Path to validation images',
@@ -31,9 +36,9 @@ parser.add_argument('--testbatch', '-t',
 					help='Number of images you want to test, has to be smaller than or equal to validation dataset size',
 					type=int, default=1)
 parser.add_argument('--epochs', '-n', help='Number of epochs you want to train for',
-					type=int, default=5)
+					type=int, default=70)
 parser.add_argument('--batches', '-b', help='Number of batches for training',
-					type=int, default=64)
+					type=int, default=32)
 args = parser.parse_args()
 
 # define the discriminator model
@@ -164,15 +169,14 @@ def define_gan(g_model, d_model, image_shape):
 	return model
 
 # load and prepare training images
-def load_real_samples(filename):
-	X1_path, X2_path = os.listdir(filename + '/seg'), os.listdir(filename + '/orig')
-	X1_path.sort()
-	X2_path.sort()
-	X1 = numpy.asarray([numpy.asarray(imageio.imread(filename + '/seg/' + j), dtype=numpy.uint8) for j in X1_path])
-	X2 = numpy.asarray([numpy.asarray(imageio.imread(filename + '/orig/' + j), dtype=numpy.uint8) for j in X2_path])
+def load_real_samples(filename, length):
+	X1_path, X2_path = sorted(os.listdir(filename + '/seg'))[0:length], sorted(os.listdir(filename + '/orig'))[0:length]
+	X1 = numpy.asarray([numpy.asarray(cv2.cvtColor(cv2.imread(filename + '/seg/' + j), cv2.COLOR_BGR2RGB), dtype=numpy.uint8) for j in X1_path])
+	X2 = numpy.asarray([numpy.asarray(cv2.cvtColor(cv2.imread(filename + '/orig/' + j), cv2.COLOR_BGR2RGB), dtype=numpy.uint8) for j in X2_path])
 	# scale from [0,255] to [-1,1]
-	X1 = (X1 - 127.5) / 127.5
-	X2 = (X2 - 127.5) / 127.5
+	X1 = (X1 - 127.5)/127.5 #2 * X1 - 1
+	# scale from [0,255] to [-1,1]
+	X2 =  (X2 - 127.5)/127.5
 	return [X1, X2]
  
 # select a batch of random samples, returns images and target
@@ -183,9 +187,23 @@ def generate_real_samples(dataset, n_samples, patch_shape):
 	ix = randint(0, trainA.shape[0], n_samples)
 	# retrieve selected images
 	X1, X2 = trainA[ix], trainB[ix]
+	X1 = color_map(X1)
 	# generate 'real' class labels (1)
 	y = ones((n_samples, patch_shape, patch_shape, 1))
 	return [X1, X2], y
+
+def color_map(X1):
+	X1 = (X1 * 127.5 + 127.5).astype('uint8')
+	rand_nums = numpy.random.randint(175, 185, len(X1)) # rand val between [-10,10]
+	rand_nums_s = numpy.random.randint(-5, 5, len(X1)) # rand val between [0,255]
+	for i in range(0, int(len(X1)-(len(X1)/8))):
+		hsv = cv2.cvtColor(X1[i], cv2.COLOR_RGB2HSV)
+		hsv[:,:,0] = numpy.mod(hsv[:,:,0] + rand_nums[i], 180)
+		hsv[:,:,1] = numpy.minimum(255, numpy.maximum(0, numpy.add(hsv[:,:,1], rand_nums_s[i]))).astype('uint8')
+		X1[i] = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+	# scale from [0,255] to [-1,1]
+	X1 = (X1 - 127.5)/127.5
+	return X1
 
 # generate a batch of images, returns images and targets
 def generate_fake_samples(g_model, samples, patch_shape):
@@ -229,13 +247,13 @@ def summarize_performance(step, g_model, dataset, path_train_plots, path_models,
 	for i in range(n_samples):
 		av_mse += (numpy.square(X_fakeB[i] - X_realB[i])).mean(axis=None)
 	av_mse = av_mse/n_samples
-	print('> Batch MSE = %.6f' % (av_mse))
+	logging.info('> Batch MSE = %.6f' % (av_mse))
 
-	if (step+1) % 1000 == 0 and (path_models is not None):
+	if (step+1) % 500 == 0 and (path_models is not None):
 		# save the generator model
 		filename2 = path_models + '/model_%03d.h5' % (step+1)
 		g_model.save(filename2)
-		print('>Saved: %s and %s' % (filename1, filename2))
+		logging.info('>Saved: %s and %s' % (filename1, filename2))
 
 # train pix2pix models
 def train(d_model, g_model, gan_model, dataset, dataset_test, dataset_val, path_train_plots,
@@ -243,13 +261,11 @@ def train(d_model, g_model, gan_model, dataset, dataset_test, dataset_val, path_
 
 	# determine the output square shape of the discriminator
 	n_patch = d_model.output_shape[1]
-	# unpack dataset
-	trainA, trainB = dataset
 	# calculate the number of batches per training epoch
-	bat_per_epo = int(len(trainA) / n_batch)
+	bat_per_epo = int(len(dataset[0]) / n_batch)
 	# calculate the number of training iterations
 	n_steps = bat_per_epo * n_epochs
-	print('Start training for %d epochs in %d steps' % (n_epochs, n_steps))
+	logging.info('Start training for %d epochs in %d steps' % (n_epochs, n_steps))
 	# manually enumerate epochs
 	for i in range(n_steps):
 		# select a batch of real samples
@@ -263,12 +279,12 @@ def train(d_model, g_model, gan_model, dataset, dataset_test, dataset_val, path_
 		# update the generator
 		g_loss, _, _ = gan_model.train_on_batch(X_realA, [y_real, X_realB])
 		# summarize performance
-		print('>%d, d1[%.3f] d2[%.3f] g[%.3f]' % (i+1, d_loss1, d_loss2, g_loss))
+		logging.info('>%d, d1[%.3f] d2[%.3f] g[%.3f]' % (i+1, d_loss1, d_loss2, g_loss))
 		# summarize model performance
-		if (i+1) % 500 == 0 or ((i+1) % 500 == 0 and (i+1) <= 2000):
+		if (i+1) % 20 == 0 or ((i+1) % 500 == 0 and (i+1) <= 2000):
 			summarize_performance(i, g_model, dataset, path_train_plots, path_models)
 		gc.collect()
-		if (i+1) % 1000 == 0 or ((i+1) % 500 == 0 and (i+1) <= 2000):
+		if (i+1) % 200 == 0 or ((i+1) % 500 == 0 and (i+1) <= 2000):
 			summarize_performance(i, g_model, dataset_val, path_val_plots, None)
 	test(n_steps, g_model, dataset_test, path_test_plots, len(dataset_test[0]))
 	
@@ -296,6 +312,11 @@ def test(step, g_model, dataset, path_test_plots, n_samples=5):
 		pyplot.savefig(filename1, dpi=200)
 		pyplot.close()
 
+logging.basicConfig(filename='log.txt',
+                        filemode='a',
+                        format='%(asctime)s %(name)s %(levelname)s %(message)s',
+                        datefmt='%H:%M:%S',
+                        level=logging.INFO)
 # load image data
 path_train_plots = args.output + '/trainplots/'
 if not os.path.exists(path_train_plots):
@@ -309,11 +330,12 @@ if not os.path.exists(path_val_plots):
 path_test_plots = args.output + '/testplots/'
 if not os.path.exists(path_test_plots):
 	os.makedirs(path_test_plots)
-dataset = load_real_samples(args.train)
-dataset_test = load_real_samples(args.test)
-dataset_val = load_real_samples(args.val)
-print('Loaded', dataset[0].shape, dataset[1].shape)
-print('Loaded', dataset_test[0].shape, dataset_test[1].shape)
+dataset = load_real_samples(args.train, 15000)
+dataset_test = load_real_samples(args.test, 500)
+dataset_val = load_real_samples(args.val, 500)
+logging.info('Loaded training data, ' + str(dataset[0].shape) + " " + str(dataset[1].shape))
+logging.info('Loaded test data, ' + str(dataset_test[0].shape) + " " + str(dataset_test[1].shape))
+logging.info('Loaded validation data, ' + str(dataset_val[0].shape) + " " + str(dataset_val[1].shape))
 # define input shape based on the loaded dataset
 image_shape = dataset[0].shape[1:]
 # define the models
@@ -327,7 +349,6 @@ gan_model = define_gan(g_model, d_model, image_shape)
 train(d_model, g_model, gan_model, dataset, dataset_test, dataset_val, path_train_plots,
 		path_test_plots, path_val_plots, path_models,
 		test_batch=args.testbatch, n_epochs=args.epochs, n_batch=args.batches)
-	
 	
 del(d_model)
 del(g_model)
